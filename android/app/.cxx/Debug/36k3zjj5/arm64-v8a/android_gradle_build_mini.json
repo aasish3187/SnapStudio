@@ -1,0 +1,34 @@
+{
+  "buildFiles": [
+    "C:\\Users\\aasis\\OneDrive - Vignan University\\Desktop\\CV_Project\\android\\app\\src\\main\\cpp\\CMakeLists.txt",
+    "C:\\Users\\aasis\\OneDrive - Vignan University\\Desktop\\CV_Project\\core\\CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "C:\\Android\\cmake\\3.22.1\\bin\\ninja.exe",
+      "-C",
+      "C:\\Users\\aasis\\OneDrive - Vignan University\\Desktop\\CV_Project\\android\\app\\.cxx\\Debug\\36k3zjj5\\arm64-v8a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "C:\\Android\\cmake\\3.22.1\\bin\\ninja.exe",
+    "-C",
+    "C:\\Users\\aasis\\OneDrive - Vignan University\\Desktop\\CV_Project\\android\\app\\.cxx\\Debug\\36k3zjj5\\arm64-v8a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "snapstudio::@6890427a1f51a3e7e1df": {
+      "artifactName": "snapstudio",
+      "abi": "arm64-v8a",
+      "output": "C:\\Users\\aasis\\OneDrive - Vignan University\\Desktop\\CV_Project\\android\\app\\build\\intermediates\\cxx\\Debug\\36k3zjj5\\obj\\arm64-v8a\\libsnapstudio.so",
+      "runtimeFiles": []
+    },
+    "SnapCore::@57760688d1f824db5d9c": {
+      "artifactName": "SnapCore",
+      "abi": "arm64-v8a",
+      "output": "C:\\Users\\aasis\\OneDrive - Vignan University\\Desktop\\CV_Project\\android\\app\\.cxx\\Debug\\36k3zjj5\\arm64-v8a\\core\\libSnapCore.a",
+      "runtimeFiles": []
+    }
+  }
+}

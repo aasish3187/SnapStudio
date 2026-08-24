@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base application theme forcing Dark Mode. -->
+    <style name="Theme.SnapStudio" parent="android:Theme.Material.NoActionBar">
+        <!-- Customize your dark theme here. -->
+    </style>
+</resources>

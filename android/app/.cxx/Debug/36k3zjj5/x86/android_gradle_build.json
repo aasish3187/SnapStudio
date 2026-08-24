@@ -1,0 +1,45 @@
+{
+  "buildFiles": [
+    "C:\\Users\\aasis\\OneDrive - Vignan University\\Desktop\\CV_Project\\android\\app\\src\\main\\cpp\\CMakeLists.txt",
+    "C:\\Users\\aasis\\OneDrive - Vignan University\\Desktop\\CV_Project\\core\\CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "C:\\Android\\cmake\\3.22.1\\bin\\ninja.exe",
+      "-C",
+      "C:\\Users\\aasis\\OneDrive - Vignan University\\Desktop\\CV_Project\\android\\app\\.cxx\\Debug\\36k3zjj5\\x86",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "C:\\Android\\cmake\\3.22.1\\bin\\ninja.exe",
+    "-C",
+    "C:\\Users\\aasis\\OneDrive - Vignan University\\Desktop\\CV_Project\\android\\app\\.cxx\\Debug\\36k3zjj5\\x86",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "SnapCore::@57760688d1f824db5d9c": {
+      "toolchain": "toolchain",
+      "abi": "x86",
+      "artifactName": "SnapCore",
+      "output": "C:\\Users\\aasis\\OneDrive - Vignan University\\Desktop\\CV_Project\\android\\app\\.cxx\\Debug\\36k3zjj5\\x86\\core\\libSnapCore.a"
+    },
+    "snapstudio::@6890427a1f51a3e7e1df": {
+      "toolchain": "toolchain",
+      "abi": "x86",
+      "artifactName": "snapstudio",
+      "output": "C:\\Users\\aasis\\OneDrive - Vignan University\\Desktop\\CV_Project\\android\\app\\build\\intermediates\\cxx\\Debug\\36k3zjj5\\obj\\x86\\libsnapstudio.so",
+      "runtimeFiles": []
+    }
+  },
+  "toolchains": {
+    "toolchain": {
+      "cCompilerExecutable": "C:\\Android\\ndk\\25.1.8937393\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\clang.exe",
+      "cppCompilerExecutable": "C:\\Android\\ndk\\25.1.8937393\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\clang++.exe"
+    }
+  },
+  "cFileExtensions": [],
+  "cppFileExtensions": [
+    "cpp"
+  ]
+}

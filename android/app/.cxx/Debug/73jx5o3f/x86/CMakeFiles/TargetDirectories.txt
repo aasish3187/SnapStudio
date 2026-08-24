@@ -1,0 +1,6 @@
+C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/android/app/.cxx/Debug/73jx5o3f/x86/CMakeFiles/snapstudio.dir
+C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/android/app/.cxx/Debug/73jx5o3f/x86/CMakeFiles/edit_cache.dir
+C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/android/app/.cxx/Debug/73jx5o3f/x86/CMakeFiles/rebuild_cache.dir
+C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/android/app/.cxx/Debug/73jx5o3f/x86/core/CMakeFiles/SnapCore.dir
+C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/android/app/.cxx/Debug/73jx5o3f/x86/core/CMakeFiles/edit_cache.dir
+C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/android/app/.cxx/Debug/73jx5o3f/x86/core/CMakeFiles/rebuild_cache.dir

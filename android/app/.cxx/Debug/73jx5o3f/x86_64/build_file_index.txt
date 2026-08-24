@@ -1,0 +1,2 @@
+C:\Users\aasis\OneDrive - Vignan University\Desktop\CV_Project\android\app\src\main\cpp\CMakeLists.txt
+C:\Users\aasis\OneDrive - Vignan University\Desktop\CV_Project\core\CMakeLists.txt

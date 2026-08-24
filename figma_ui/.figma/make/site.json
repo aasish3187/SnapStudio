@@ -1,0 +1,10 @@
+{
+  "description": "This web application offers users a platform to create visually stunning and highly customizable designs, enhancing creativity and productivity for professionals and enthusiasts alike.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

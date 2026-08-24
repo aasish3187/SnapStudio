@@ -1,0 +1,20 @@
+# ninja log v5
+69	680	8088533010492461	core/CMakeFiles/SnapCore.dir/src/pipeline/SnapCore.cpp.o	8d3c8be13e318fbd
+2	693	8088533010562894	CMakeFiles/snapstudio.dir/native-lib.cpp.o	689884d4f26f4fc8
+122	834	8088533011938721	core/CMakeFiles/SnapCore.dir/src/pipeline/EditState.cpp.o	524c620d02676757
+834	1265	8088533014904083	core/libSnapCore.a	349c097f74b2b68
+1266	1843	8088533021803830	C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/android/app/build/intermediates/cxx/Debug/73jx5o3f/obj/arm64-v8a/libsnapstudio.so	3eef41fbea664e38
+437	1130	8088584773220969	C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/android/app/build/intermediates/cxx/Debug/73jx5o3f/obj/arm64-v8a/libsnapstudio.so	3eef41fbea664e38
+0	19	0	clean	4e350e9dcb7ec83f
+397	873	8088651082892858	core/CMakeFiles/SnapCore.dir/src/pipeline/SnapCore.cpp.o	8d3c8be13e318fbd
+247	881	8088651082952855	CMakeFiles/snapstudio.dir/native-lib.cpp.o	689884d4f26f4fc8
+443	946	8088651083624800	core/CMakeFiles/SnapCore.dir/src/pipeline/EditState.cpp.o	524c620d02676757
+946	1111	8088651084955153	core/libSnapCore.a	349c097f74b2b68
+1111	1307	8088651087081971	C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/android/app/build/intermediates/cxx/Debug/73jx5o3f/obj/arm64-v8a/libsnapstudio.so	3eef41fbea664e38
+1	42	0	clean	4e350e9dcb7ec83f
+5	676	8089055561137745	core/CMakeFiles/SnapCore.dir/src/pipeline/SnapCore.cpp.o	8d3c8be13e318fbd
+113	680	8089055561167920	CMakeFiles/snapstudio.dir/native-lib.cpp.o	689884d4f26f4fc8
+45	730	8089055561748117	core/CMakeFiles/SnapCore.dir/src/pipeline/EditState.cpp.o	524c620d02676757
+730	1043	8089055563807208	core/libSnapCore.a	349c097f74b2b68
+1043	1257	8089055566698918	C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/android/app/build/intermediates/cxx/Debug/73jx5o3f/obj/arm64-v8a/libsnapstudio.so	3eef41fbea664e38
+30	431	8089316682474358	C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/android/app/build/intermediates/cxx/Debug/73jx5o3f/obj/arm64-v8a/libsnapstudio.so	3eef41fbea664e38

@@ -1,0 +1,19 @@
+# ninja log v5
+43	613	8088585624150547	core/CMakeFiles/SnapCore.dir/src/pipeline/SnapCore.cpp.o	df9e41800a0b5702
+2	621	8088585624205648	CMakeFiles/snapstudio.dir/native-lib.cpp.o	253c05ff27c82e46
+21	738	8088585625280333	core/CMakeFiles/SnapCore.dir/src/pipeline/EditState.cpp.o	6463f2c344333793
+739	916	8088585626709376	core/libSnapCore.a	349c097f74b2b68
+917	1132	8088585629085800	C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/android/app/build/intermediates/cxx/Debug/73jx5o3f/obj/armeabi-v7a/libsnapstudio.so	d963274ce1764458
+0	21	0	clean	4e350e9dcb7ec83f
+5	706	8088996889265384	CMakeFiles/snapstudio.dir/native-lib.cpp.o	253c05ff27c82e46
+61	707	8088996889235441	core/CMakeFiles/SnapCore.dir/src/pipeline/SnapCore.cpp.o	df9e41800a0b5702
+25	744	8088996889676001	core/CMakeFiles/SnapCore.dir/src/pipeline/EditState.cpp.o	6463f2c344333793
+745	942	8088996891092192	core/libSnapCore.a	349c097f74b2b68
+942	1170	8088996893720966	C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/android/app/build/intermediates/cxx/Debug/73jx5o3f/obj/armeabi-v7a/libsnapstudio.so	d963274ce1764458
+2	31	0	clean	4e350e9dcb7ec83f
+4	549	8089055615058471	core/CMakeFiles/SnapCore.dir/src/pipeline/SnapCore.cpp.o	df9e41800a0b5702
+78	551	8089055615118731	CMakeFiles/snapstudio.dir/native-lib.cpp.o	253c05ff27c82e46
+27	600	8089055615760488	core/CMakeFiles/SnapCore.dir/src/pipeline/EditState.cpp.o	6463f2c344333793
+600	1047	8089055618997113	core/libSnapCore.a	349c097f74b2b68
+1047	1473	8089055623156987	C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/android/app/build/intermediates/cxx/Debug/73jx5o3f/obj/armeabi-v7a/libsnapstudio.so	d963274ce1764458
+45	599	8089316781317512	C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/android/app/build/intermediates/cxx/Debug/73jx5o3f/obj/armeabi-v7a/libsnapstudio.so	d963274ce1764458

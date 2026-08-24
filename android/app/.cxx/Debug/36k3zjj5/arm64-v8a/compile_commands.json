@@ -1,0 +1,17 @@
+[
+{
+  "directory": "C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/android/app/.cxx/Debug/36k3zjj5/arm64-v8a",
+  "command": "C:\\Android\\ndk\\25.1.8937393\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\clang++.exe --target=aarch64-none-linux-android24 --sysroot=C:/Android/ndk/25.1.8937393/toolchains/llvm/prebuilt/windows-x86_64/sysroot -Dsnapstudio_EXPORTS -I\"C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/core/include\" -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -std=c++17 -fno-limit-debug-info  -fPIC -o CMakeFiles\\snapstudio.dir\\native-lib.cpp.o -c \"C:\\Users\\aasis\\OneDrive - Vignan University\\Desktop\\CV_Project\\android\\app\\src\\main\\cpp\\native-lib.cpp\"",
+  "file": "C:\\Users\\aasis\\OneDrive - Vignan University\\Desktop\\CV_Project\\android\\app\\src\\main\\cpp\\native-lib.cpp"
+},
+{
+  "directory": "C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/android/app/.cxx/Debug/36k3zjj5/arm64-v8a",
+  "command": "C:\\Android\\ndk\\25.1.8937393\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\clang++.exe --target=aarch64-none-linux-android24 --sysroot=C:/Android/ndk/25.1.8937393/toolchains/llvm/prebuilt/windows-x86_64/sysroot -I\"C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/core/include\" -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -std=c++17 -fno-limit-debug-info  -fPIC -std=gnu++17 -o core\\CMakeFiles\\SnapCore.dir\\src\\pipeline\\SnapCore.cpp.o -c \"C:\\Users\\aasis\\OneDrive - Vignan University\\Desktop\\CV_Project\\core\\src\\pipeline\\SnapCore.cpp\"",
+  "file": "C:\\Users\\aasis\\OneDrive - Vignan University\\Desktop\\CV_Project\\core\\src\\pipeline\\SnapCore.cpp"
+},
+{
+  "directory": "C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/android/app/.cxx/Debug/36k3zjj5/arm64-v8a",
+  "command": "C:\\Android\\ndk\\25.1.8937393\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\clang++.exe --target=aarch64-none-linux-android24 --sysroot=C:/Android/ndk/25.1.8937393/toolchains/llvm/prebuilt/windows-x86_64/sysroot -I\"C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/core/include\" -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -std=c++17 -fno-limit-debug-info  -fPIC -std=gnu++17 -o core\\CMakeFiles\\SnapCore.dir\\src\\pipeline\\EditState.cpp.o -c \"C:\\Users\\aasis\\OneDrive - Vignan University\\Desktop\\CV_Project\\core\\src\\pipeline\\EditState.cpp\"",
+  "file": "C:\\Users\\aasis\\OneDrive - Vignan University\\Desktop\\CV_Project\\core\\src\\pipeline\\EditState.cpp"
+}
+]

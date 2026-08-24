@@ -1,0 +1,6 @@
+# ninja log v5
+39	751	8088512977547108	core/CMakeFiles/SnapCore.dir/src/pipeline/SnapCore.cpp.o	19d60b5dd59621d
+2	760	8088512977616461	CMakeFiles/snapstudio.dir/native-lib.cpp.o	96ccaea45fdf5909
+10	571	8088515358611768	core/CMakeFiles/SnapCore.dir/src/pipeline/EditState.cpp.o	9a73fe59a556a185
+571	3624	8088515377057351	core/libSnapCore.a	349c097f74b2b68
+3625	3927	8088515391831225	C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/android/app/build/intermediates/cxx/Debug/36k3zjj5/obj/arm64-v8a/libsnapstudio.so	fe9e3841cf05c77d

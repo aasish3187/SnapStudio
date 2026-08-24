@@ -1,0 +1,19 @@
+                        -HC:\Users\aasis\OneDrive - Vignan University\Desktop\CV_Project\android\app\src\main\cpp
+-DCMAKE_SYSTEM_NAME=Android
+-DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+-DCMAKE_SYSTEM_VERSION=24
+-DANDROID_PLATFORM=android-24
+-DANDROID_ABI=x86
+-DCMAKE_ANDROID_ARCH_ABI=x86
+-DANDROID_NDK=C:\Android\ndk\25.1.8937393
+-DCMAKE_ANDROID_NDK=C:\Android\ndk\25.1.8937393
+-DCMAKE_TOOLCHAIN_FILE=C:\Android\ndk\25.1.8937393\build\cmake\android.toolchain.cmake
+-DCMAKE_MAKE_PROGRAM=C:\Android\cmake\3.22.1\bin\ninja.exe
+-DCMAKE_CXX_FLAGS=-std=c++17
+-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=C:\Users\aasis\OneDrive - Vignan University\Desktop\CV_Project\android\app\build\intermediates\cxx\Debug\36k3zjj5\obj\x86
+-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=C:\Users\aasis\OneDrive - Vignan University\Desktop\CV_Project\android\app\build\intermediates\cxx\Debug\36k3zjj5\obj\x86
+-DCMAKE_BUILD_TYPE=Debug
+-BC:\Users\aasis\OneDrive - Vignan University\Desktop\CV_Project\android\app\.cxx\Debug\36k3zjj5\x86
+-GNinja
+                        Build command args: []
+                        Version: 2
