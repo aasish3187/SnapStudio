@@ -78,7 +78,7 @@ val ALL_STUDIO_TOOLS = listOf(
 
     // AI TOOLS
     StudioTool("gen_fill", "Gen Fill", Icons.Outlined.AutoFixHigh, StudioCategory.FIX, isNew = true),
-    StudioTool("object_remove", "Erase", Icons.Outlined.CleaningServices, StudioCategory.FIX, isNew = true),
+    StudioTool("object_remove", "Background Remover", Icons.Outlined.AutoFixHigh, StudioCategory.FIX, isNew = true),
     StudioTool("face_restore", "Face Restore", Icons.Outlined.FaceRetouchingNatural, StudioCategory.REFINE, isNew = true)
 )
 

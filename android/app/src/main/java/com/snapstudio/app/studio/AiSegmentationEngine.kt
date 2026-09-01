@@ -17,8 +17,8 @@ import kotlin.coroutines.resumeWithException
 import kotlin.math.*
 
 /**
- * On-Device Neural AI Segmentation Engine powered by Google ML Kit.
- * Handles 1-Tap Subject, Background, Sky, and Interactive Object Tap-Segmentation.
+ * On-Device Neural AI Segmentation & 1-Tap Cutout Engine powered by Google ML Kit.
+ * Handles instant Background Removal, Subject Removal, and Sky Cutout.
  */
 object AiSegmentationEngine {
 
@@ -61,6 +61,51 @@ object AiSegmentationEngine {
 
         maskBmp.setPixels(outPixels, 0, width, 0, 0, width, height)
         maskBmp
+    }
+
+    /**
+     * 1-Tap Instant Background Removal / Transparent Cutout.
+     */
+    suspend fun removeBackground(source: Bitmap, backgroundColor: Int = Color.TRANSPARENT): Bitmap = withContext(Dispatchers.Default) {
+        val width = source.width
+        val height = source.height
+        val subjectMask = segmentSubject(source)
+
+        val srcPixels = IntArray(width * height)
+        val maskPixels = IntArray(width * height)
+        val outPixels = IntArray(width * height)
+
+        source.getPixels(srcPixels, 0, width, 0, 0, width, height)
+        subjectMask.getPixels(maskPixels, 0, width, 0, 0, width, height)
+
+        for (i in srcPixels.indices) {
+            val maskAlpha = Color.alpha(maskPixels[i])
+            if (maskAlpha > 30) {
+                outPixels[i] = srcPixels[i]
+            } else {
+                outPixels[i] = backgroundColor
+            }
+        }
+
+        val result = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        result.setPixels(outPixels, 0, width, 0, 0, width, height)
+        result
+    }
+
+    /**
+     * 1-Tap Instant Subject Removal & Background Inpainting.
+     */
+    suspend fun removeSubject(source: Bitmap): Bitmap = withContext(Dispatchers.Default) {
+        val subjectMask = segmentSubject(source)
+        FastInpaintingEngine.inpaint(source, subjectMask, radius = 12)
+    }
+
+    /**
+     * 1-Tap Instant Sky Removal.
+     */
+    suspend fun removeSky(source: Bitmap): Bitmap = withContext(Dispatchers.Default) {
+        val skyMask = segmentSky(source)
+        FastInpaintingEngine.inpaint(source, skyMask, radius = 12)
     }
 
     suspend fun segmentBackground(source: Bitmap): Bitmap = withContext(Dispatchers.Default) {

@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.sp
 import com.snapstudio.app.studio.FaceRetouchEngine
 import com.snapstudio.app.studio.GenerativeExpandEngine
 import com.snapstudio.app.studio.LensBlurEngine
+import com.snapstudio.app.ui.components.BackgroundRemoverPanel
 import com.snapstudio.app.ui.components.ChromeButton
 import com.snapstudio.app.ui.components.FaceRestorePanel
 import com.snapstudio.app.ui.components.HealingPanel
@@ -1398,73 +1399,90 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                 }
                             }
                             "object_remove", "healing" -> {
-                                com.snapstudio.app.ui.components.HealingPanel(
-                                    toolName = activeTab,
+                                BackgroundRemoverPanel(
                                     brushSize = healingBrushSize,
                                     onBrushSizeChanged = { healingBrushSize = it },
                                     isEraseMode = healingIsErase,
                                     onToggleErase = { healingIsErase = it },
-                                    isHealingInProgress = isHealingInProgress,
-                                    onAiDetectDistractions = {
-                                        val cur = bitmap ?: return@HealingPanel
-                                        coroutineScope.launch {
-                                            val distractions = AiMagicEraserEngine.detectBackgroundDistractions(cur)
-                                            healingMaskEngine.restoreMask(distractions)
-                                            healingMaskVersion++
-                                            Toast.makeText(context, "🔍 AI Distractions & Photobombers Detected!", Toast.LENGTH_SHORT).show()
+                                    isProcessing = isHealingInProgress,
+                                    onRemoveBackground = {
+                                        val cur = bitmap ?: return@BackgroundRemoverPanel
+                                        if (!isHealingInProgress) {
+                                            isHealingInProgress = true
+                                            coroutineScope.launch {
+                                                try {
+                                                    val cutout = AiSegmentationEngine.removeBackground(cur)
+                                                    bitmap = cutout
+                                                    commitHistory(overlays, cutout)
+                                                    isHealingInProgress = false
+                                                    Toast.makeText(context, "✨ Background Removed!", Toast.LENGTH_SHORT).show()
+                                                } catch (e: Exception) {
+                                                    e.printStackTrace()
+                                                    isHealingInProgress = false
+                                                    Toast.makeText(context, "Failed to remove background", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
                                         }
                                     },
-                                    onAiSelectSubject = {
-                                        val cur = bitmap ?: return@HealingPanel
-                                        coroutineScope.launch {
-                                            val subjectMask = AiSegmentationEngine.segmentSubject(cur)
-                                            healingMaskEngine.restoreMask(subjectMask)
-                                            healingMaskVersion++
-                                            Toast.makeText(context, "👤 Subject Masked for Removal", Toast.LENGTH_SHORT).show()
+                                    onRemoveSubject = {
+                                        val cur = bitmap ?: return@BackgroundRemoverPanel
+                                        if (!isHealingInProgress) {
+                                            isHealingInProgress = true
+                                            coroutineScope.launch {
+                                                try {
+                                                    val removed = AiSegmentationEngine.removeSubject(cur)
+                                                    bitmap = removed
+                                                    commitHistory(overlays, removed)
+                                                    isHealingInProgress = false
+                                                    Toast.makeText(context, "✨ Subject Removed with AI!", Toast.LENGTH_SHORT).show()
+                                                } catch (e: Exception) {
+                                                    e.printStackTrace()
+                                                    isHealingInProgress = false
+                                                    Toast.makeText(context, "Failed to remove subject", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
                                         }
                                     },
-                                    onAiSelectBackground = {
-                                        val cur = bitmap ?: return@HealingPanel
-                                        coroutineScope.launch {
-                                            val bgMask = AiSegmentationEngine.segmentBackground(cur)
-                                            healingMaskEngine.restoreMask(bgMask)
-                                            healingMaskVersion++
-                                            Toast.makeText(context, "🌄 Background Masked for Removal", Toast.LENGTH_SHORT).show()
+                                    onRemoveSky = {
+                                        val cur = bitmap ?: return@BackgroundRemoverPanel
+                                        if (!isHealingInProgress) {
+                                            isHealingInProgress = true
+                                            coroutineScope.launch {
+                                                try {
+                                                    val removed = AiSegmentationEngine.removeSky(cur)
+                                                    bitmap = removed
+                                                    commitHistory(overlays, removed)
+                                                    isHealingInProgress = false
+                                                    Toast.makeText(context, "✨ Sky Removed with AI!", Toast.LENGTH_SHORT).show()
+                                                } catch (e: Exception) {
+                                                    e.printStackTrace()
+                                                    isHealingInProgress = false
+                                                    Toast.makeText(context, "Failed to remove sky", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
                                         }
                                     },
-                                    onAiSelectSky = {
-                                        val cur = bitmap ?: return@HealingPanel
-                                        coroutineScope.launch {
-                                            val skyMask = AiSegmentationEngine.segmentSky(cur)
-                                            healingMaskEngine.restoreMask(skyMask)
-                                            healingMaskVersion++
-                                            Toast.makeText(context, "☁️ Sky Masked for Removal", Toast.LENGTH_SHORT).show()
-                                        }
-                                    },
-                                    onGenerativeReplace = {
-                                        showGenerativeReplaceDialog = true
-                                    },
-                                    onApplyHeal = {
+                                    onApplyBrushErase = {
                                         val cur = bitmap
                                         if (cur != null && !isHealingInProgress) {
                                             isHealingInProgress = true
                                             coroutineScope.launch {
                                                 try {
-                                                    val healed = AiMagicEraserEngine.aiErase(
+                                                    val erased = FastInpaintingEngine.inpaint(
                                                         source = cur,
                                                         mask = healingMaskEngine.maskBitmap,
-                                                        refineMaskWithAi = true
+                                                        radius = (healingBrushSize * 0.15f).toInt().coerceIn(4, 12)
                                                     )
-                                                    bitmap = healed
+                                                    bitmap = erased
                                                     healingMaskEngine.clear()
                                                     healingMaskVersion++
                                                     isHealingInProgress = false
-                                                    commitHistory(overlays, healed)
-                                                    Toast.makeText(context, "✨ Object Erased with AI!", Toast.LENGTH_SHORT).show()
+                                                    commitHistory(overlays, erased)
+                                                    Toast.makeText(context, "✨ Brushed Area Erased!", Toast.LENGTH_SHORT).show()
                                                 } catch (e: Exception) {
                                                     e.printStackTrace()
                                                     isHealingInProgress = false
-                                                    Toast.makeText(context, "Healing failed", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, "Erase failed", Toast.LENGTH_SHORT).show()
                                                 }
                                             }
                                         }
@@ -1472,6 +1490,9 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                     onClearSelection = {
                                         healingMaskEngine.clear()
                                         healingMaskVersion++
+                                    },
+                                    onGenerativeReplace = {
+                                        showGenerativeReplaceDialog = true
                                     }
                                 )
                             }
@@ -1632,7 +1653,7 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                     Divider(color = Line, thickness = 1.dp)
                     Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Outlined.Close, contentDescription = "Cancel", tint = Color(0xFFFF5252), modifier = Modifier.size(28.dp).clickable { cancelTool() })
-                        Text(text = activeTab.replace("_", " ").uppercase(), color = Fg, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text(text = if (activeTab == "object_remove") "BACKGROUND REMOVER" else activeTab.replace("_", " ").uppercase(), color = Fg, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                         Icon(Icons.Outlined.Check, contentDescription = "Apply", tint = Amber, modifier = Modifier.size(28.dp).clickable { applyTool() })
                     }
                 }
