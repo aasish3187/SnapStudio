@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.snapstudio.app.studio.FaceRetouchEngine
+import com.snapstudio.app.studio.GenerativeExpandEngine
 import com.snapstudio.app.studio.LensBlurEngine
 import com.snapstudio.app.ui.components.ChromeButton
 import com.snapstudio.app.ui.components.FaceRestorePanel
@@ -65,6 +66,7 @@ import com.snapstudio.app.ui.components.HealingPanel
 import com.snapstudio.app.ui.components.LensBlurPanel
 import com.snapstudio.app.ui.components.SelectiveBrushPanel
 import com.snapstudio.app.ui.components.SelectiveMode
+import com.snapstudio.app.ui.components.StudioHistogram
 import com.snapstudio.app.ui.theme.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -243,6 +245,8 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
     var faceEyeClarity by remember { mutableStateOf(0.4f) }
     var faceSkinGlow by remember { mutableStateOf(0.25f) }
     var isFaceProcessing by remember { mutableStateOf(false) }
+
+    var isComparingOriginal by remember { mutableStateOf(false) }
 
     var canvasScale by remember { mutableStateOf(1f) }
     var canvasOffset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
@@ -611,6 +615,30 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                     onClick = { applyRedo() },
                     enabled = historyIndex < history.size - 1
                 )
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(if (isComparingOriginal) Amber else Ink750)
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onPress = {
+                                    isComparingOriginal = true
+                                    tryAwaitRelease()
+                                    isComparingOriginal = false
+                                }
+                            )
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "RAW",
+                        color = if (isComparingOriginal) Ink900 else Fg,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 0.5.sp
+                    )
+                }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(
@@ -821,7 +849,8 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                             }
                         }
                 ) {
-                    val displayBmp = liveDisplayBitmap ?: bitmap!!
+                    val displayBmp = if (isComparingOriginal) (history.firstOrNull()?.bitmap ?: bitmap!!) else (liveDisplayBitmap ?: bitmap!!)
+                    val activeColorMatrix = if (isComparingOriginal) ColorMatrix() else composeColorMatrix
                     Image(
                         bitmap = displayBmp.asImageBitmap(),
                         contentDescription = "Edit Canvas",
@@ -831,119 +860,185 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                             .padding(4.dp)
                             .drawWithContent {
                                 drawContent()
-                                if (doubleExposureBitmap != null) drawImage(doubleExposureBitmap!!, alpha = doubleExposureOpacity, blendMode = BlendMode.Screen)
-                                if (vignetteStrength > 0f) drawRect(androidx.compose.ui.graphics.Brush.radialGradient(listOf(Color.Transparent, Color.Black.copy(alpha = vignetteStrength)), center = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f), radius = Math.min(size.width, size.height) / 1.2f))
-                                if (grainStrength > 0f) drawRect(Color.White.copy(alpha = grainStrength * 0.15f), blendMode = BlendMode.Overlay)
-                                if (lightLeakStrength > 0f) drawRect(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFFF5722).copy(alpha = lightLeakStrength * 0.4f), Color.Transparent)), blendMode = BlendMode.Screen)
-                                
-                                // Render Frame Styles
-                                when (frameStyle) {
-                                    "white_border", "white" -> {
-                                        val bw = size.width * 0.05f
-                                        val bh = size.height * 0.05f
-                                        drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(0f, 0f), size = androidx.compose.ui.geometry.Size(size.width, bh))
-                                        drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - bh), size = androidx.compose.ui.geometry.Size(size.width, bh))
-                                        drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(0f, 0f), size = androidx.compose.ui.geometry.Size(bw, size.height))
-                                        drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(size.width - bw, 0f), size = androidx.compose.ui.geometry.Size(bw, size.height))
+                                if (!isComparingOriginal) {
+                                    if (doubleExposureBitmap != null) drawImage(doubleExposureBitmap!!, alpha = doubleExposureOpacity, blendMode = BlendMode.Screen)
+                                    if (vignetteStrength > 0f) drawRect(androidx.compose.ui.graphics.Brush.radialGradient(listOf(Color.Transparent, Color.Black.copy(alpha = vignetteStrength)), center = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f), radius = Math.min(size.width, size.height) / 1.2f))
+                                    if (grainStrength > 0f) drawRect(Color.White.copy(alpha = grainStrength * 0.15f), blendMode = BlendMode.Overlay)
+                                    if (lightLeakStrength > 0f) drawRect(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFFF5722).copy(alpha = lightLeakStrength * 0.4f), Color.Transparent)), blendMode = BlendMode.Screen)
+                                    
+                                    // Render Frame Styles
+                                    when (frameStyle) {
+                                        "white_border", "white" -> {
+                                            val bw = size.width * 0.05f
+                                            val bh = size.height * 0.05f
+                                            drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(0f, 0f), size = androidx.compose.ui.geometry.Size(size.width, bh))
+                                            drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - bh), size = androidx.compose.ui.geometry.Size(size.width, bh))
+                                            drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(0f, 0f), size = androidx.compose.ui.geometry.Size(bw, size.height))
+                                            drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(size.width - bw, 0f), size = androidx.compose.ui.geometry.Size(bw, size.height))
+                                        }
+                                        "polaroid" -> {
+                                            val bw = size.width * 0.05f
+                                            val topH = size.height * 0.05f
+                                            val botH = size.height * 0.18f
+                                            drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(0f, 0f), size = androidx.compose.ui.geometry.Size(size.width, topH))
+                                            drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - botH), size = androidx.compose.ui.geometry.Size(size.width, botH))
+                                            drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(0f, 0f), size = androidx.compose.ui.geometry.Size(bw, size.height))
+                                            drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(size.width - bw, 0f), size = androidx.compose.ui.geometry.Size(bw, size.height))
+                                        }
+                                        "cinematic" -> {
+                                            val barH = size.height * 0.14f
+                                            drawRect(Color.Black, topLeft = androidx.compose.ui.geometry.Offset(0f, 0f), size = androidx.compose.ui.geometry.Size(size.width, barH))
+                                            drawRect(Color.Black, topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - barH), size = androidx.compose.ui.geometry.Size(size.width, barH))
+                                        }
                                     }
-                                    "polaroid" -> {
-                                        val bw = size.width * 0.05f
-                                        val topH = size.height * 0.05f
-                                        val botH = size.height * 0.18f
-                                        drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(0f, 0f), size = androidx.compose.ui.geometry.Size(size.width, topH))
-                                        drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - botH), size = androidx.compose.ui.geometry.Size(size.width, botH))
-                                        drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(0f, 0f), size = androidx.compose.ui.geometry.Size(bw, size.height))
-                                        drawRect(Color.White, topLeft = androidx.compose.ui.geometry.Offset(size.width - bw, 0f), size = androidx.compose.ui.geometry.Size(bw, size.height))
-                                    }
-                                    "cinematic" -> {
-                                        val barH = size.height * 0.14f
-                                        drawRect(Color.Black, topLeft = androidx.compose.ui.geometry.Offset(0f, 0f), size = androidx.compose.ui.geometry.Size(size.width, barH))
-                                        drawRect(Color.Black, topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - barH), size = androidx.compose.ui.geometry.Size(size.width, barH))
+
+                                    // Rule of Thirds & Compositional Grid for Crop & Rotate
+                                    if (activeTab == "crop" || activeTab == "rotate") {
+                                        val gridColor = Color.White.copy(alpha = 0.5f)
+                                        drawLine(gridColor, Offset(size.width * 0.333f, 0f), Offset(size.width * 0.333f, size.height), strokeWidth = 1.5f)
+                                        drawLine(gridColor, Offset(size.width * 0.666f, 0f), Offset(size.width * 0.666f, size.height), strokeWidth = 1.5f)
+                                        drawLine(gridColor, Offset(0f, size.height * 0.333f), Offset(size.width, size.height * 0.333f), strokeWidth = 1.5f)
+                                        drawLine(gridColor, Offset(0f, size.height * 0.666f), Offset(size.width, size.height * 0.666f), strokeWidth = 1.5f)
                                     }
                                 }
                             },
-                        colorFilter = ColorFilter.colorMatrix(composeColorMatrix)
+                        colorFilter = ColorFilter.colorMatrix(activeColorMatrix)
                     )
                     
-                    overlays.forEach { item ->
-                        val isActive = item.id == selectedOverlayId
-                        Box(
-                            modifier = Modifier
-                                .offset { IntOffset(item.x.roundToInt(), item.y.roundToInt()) }
-                                .graphicsLayer {
-                                    scaleX = item.scale
-                                    scaleY = item.scale
-                                    rotationZ = item.rotation
-                                }
-                                .pointerInput(item.id) {
-                                    detectTransformGestures { _, pan, zoom, rotation ->
-                                        selectedOverlayId = item.id
-                                        val index = overlays.indexOfFirst { it.id == item.id }
-                                        if (index != -1) {
-                                            val cur = overlays[index]
-                                            val updated = cur.copy(
-                                                x = cur.x + pan.x,
-                                                y = cur.y + pan.y,
-                                                scale = (cur.scale * zoom).coerceIn(0.3f, 6f),
-                                                rotation = cur.rotation + rotation
-                                            )
-                                            val newList = overlays.toMutableList()
-                                            newList[index] = updated
-                                            overlays = newList
+                    if (!isComparingOriginal) {
+                        overlays.forEach { item ->
+                            val isActive = item.id == selectedOverlayId
+                            Box(
+                                modifier = Modifier
+                                    .offset { IntOffset(item.x.roundToInt(), item.y.roundToInt()) }
+                                    .graphicsLayer {
+                                        scaleX = item.scale
+                                        scaleY = item.scale
+                                        rotationZ = item.rotation
+                                    }
+                                    .pointerInput(item.id) {
+                                        detectDragGestures { change, dragAmount ->
+                                            change.consume()
+                                            selectedOverlayId = item.id
+                                            overlays = overlays.map {
+                                                if (it.id == item.id) it.copy(x = it.x + dragAmount.x, y = it.y + dragAmount.y) else it
+                                            }
                                         }
                                     }
-                                }
-                                .border(width = if (isActive) 1.5.dp else 0.dp, color = if (isActive) Amber else Color.Transparent, shape = RoundedCornerShape(8.dp))
-                                .padding(6.dp)
-                        ) {
-                            if (item.type == OverlayType.TEXT) {
-                                Text(
-                                    text = item.content,
-                                    color = item.color,
-                                    fontSize = 36.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier
-                                        .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
-                                        .padding(horizontal = 14.dp, vertical = 8.dp)
-                                )
-                            } else if (item.type == OverlayType.STICKER) {
-                                Box(
-                                    modifier = Modifier
-                                        .border(1.5.dp, Color.White.copy(alpha = 0.9f), RoundedCornerShape(6.dp))
-                                        .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(6.dp))
-                                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                                ) {
+                                    .pointerInput(item.id) {
+                                        detectTransformGestures { _, pan, zoom, rotation ->
+                                            selectedOverlayId = item.id
+                                            overlays = overlays.map {
+                                                if (it.id == item.id) it.copy(
+                                                    x = it.x + pan.x,
+                                                    y = it.y + pan.y,
+                                                    scale = (it.scale * zoom).coerceIn(0.4f, 4.0f),
+                                                    rotation = it.rotation + rotation
+                                                ) else it
+                                            }
+                                        }
+                                    }
+                                    .clickable { selectedOverlayId = item.id }
+                                    .then(if (isActive) Modifier.border(1.5.dp, Amber, RoundedCornerShape(4.dp)).padding(4.dp) else Modifier)
+                            ) {
+                                if (item.type == OverlayType.TEXT) {
+                                    val fontFam = when(item.fontFamily) {
+                                        "serif" -> androidx.compose.ui.text.font.FontFamily.Serif
+                                        "mono" -> androidx.compose.ui.text.font.FontFamily.Monospace
+                                        "cursive" -> androidx.compose.ui.text.font.FontFamily.Cursive
+                                        else -> androidx.compose.ui.text.font.FontFamily.Default
+                                    }
                                     Text(
                                         text = item.content,
-                                        color = Color.White,
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.Black,
-                                        letterSpacing = 1.5.sp
+                                        color = item.color,
+                                        fontSize = 48.sp,
+                                        fontFamily = fontFam,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier
+                                            .then(
+                                                when (item.bgStyle) {
+                                                    "box" -> Modifier.background(Color.Black.copy(alpha = 0.5f)).padding(horizontal = 8.dp, vertical = 4.dp)
+                                                    "rounded" -> Modifier.background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 4.dp)
+                                                    else -> Modifier
+                                                }
+                                            )
                                     )
+                                } else if (item.type == OverlayType.STICKER) {
+                                    Box(
+                                        modifier = Modifier
+                                            .border(1.5.dp, Color.White, RoundedCornerShape(6.dp))
+                                            .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(6.dp))
+                                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                                    ) {
+                                        Text(
+                                            text = item.content,
+                                            color = Color.White,
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Black,
+                                            letterSpacing = 1.5.sp
+                                        )
+                                    }
+                                } else if (item.type == OverlayType.IMAGE_STICKER) {
+                                    var stickerBmp by remember(item.content) { mutableStateOf<Bitmap?>(null) }
+                                    LaunchedEffect(item.content) {
+                                        withContext(Dispatchers.IO) {
+                                            try {
+                                                val stream = context.contentResolver.openInputStream(Uri.parse(item.content))
+                                                stickerBmp = BitmapFactory.decodeStream(stream)
+                                                stream?.close()
+                                            } catch (e: Exception) { e.printStackTrace() }
+                                        }
+                                    }
+                                    stickerBmp?.let {
+                                        Image(bitmap = it.asImageBitmap(), contentDescription = "Image Sticker", modifier = Modifier.size(100.dp))
+                                    }
                                 }
-                            } else if (item.type == OverlayType.IMAGE_STICKER) {
-                                ImageStickerView(uriString = item.content)
-                            }
-                            if (isActive) {
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .offset(x = 12.dp, y = (-12).dp)
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFFFF3B30))
-                                        .clickable {
-                                            overlays = overlays.filter { it.id != item.id }
-                                            selectedOverlayId = null
-                                            commitHistory(overlays, bitmap)
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(Icons.Outlined.Close, contentDescription = "Delete", tint = Color.White, modifier = Modifier.size(14.dp))
+                                if (isActive) {
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .offset(x = 12.dp, y = (-12).dp)
+                                            .size(24.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFFFF3B30))
+                                            .clickable {
+                                                overlays = overlays.filter { it.id != item.id }
+                                                selectedOverlayId = null
+                                                commitHistory(overlays, bitmap)
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Outlined.Close, contentDescription = "Delete", tint = Color.White, modifier = Modifier.size(14.dp))
+                                    }
                                 }
                             }
                         }
                     }
+                }
+
+                // Top Badge when comparing original
+                if (isComparingOriginal) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = 10.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.Black.copy(alpha = 0.75f))
+                            .padding(horizontal = 14.dp, vertical = 5.dp)
+                    ) {
+                        Text(
+                            text = "ORIGINAL PHOTO",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                            letterSpacing = 1.5.sp
+                        )
+                    }
+                } else if (activeTab in listOf("tune_image", "adjust", "curves", "white_balance", "tonal_contrast")) {
+                    StudioHistogram(
+                        bitmap = liveDisplayBitmap ?: bitmap,
+                        modifier = Modifier.align(Alignment.TopEnd).padding(10.dp)
+                    )
                 }
             } else {
                 CircularProgressIndicator(color = Amber, modifier = Modifier.size(36.dp))
@@ -1059,20 +1154,54 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                 }
                             }
                             "gen_fill" -> {
+                                var isExpanding by remember { mutableStateOf(false) }
                                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.fillMaxSize().padding(16.dp)) {
-                                    Text("AI Generative Expand", color = Amber, fontWeight = FontWeight.Bold)
+                                    Text("AI Generative Expand & Outpainting", color = Amber, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text("Synthesizes natural background textures to un-crop photos", color = FgMuted, fontSize = 12.sp)
                                     Spacer(modifier = Modifier.height(12.dp))
-                                    Button(onClick = {
-                                        val cur = bitmap ?: return@Button
-                                        val padded = Bitmap.createBitmap((cur.width * 1.15f).toInt(), (cur.height * 1.15f).toInt(), Bitmap.Config.ARGB_8888)
-                                        val c = Canvas(padded)
-                                        c.drawColor(android.graphics.Color.DKGRAY)
-                                        c.drawBitmap(cur, (padded.width - cur.width)/2f, (padded.height - cur.height)/2f, null)
-                                        bitmap = padded
-                                        commitHistory(overlays, padded)
-                                        Toast.makeText(context, "AI Expand Applied!", Toast.LENGTH_SHORT).show()
-                                    }, colors = ButtonDefaults.buttonColors(containerColor = Amber, contentColor = Ink900)) {
-                                        Text("Run Generative Fill")
+                                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        Button(
+                                            onClick = {
+                                                val cur = bitmap ?: return@Button
+                                                if (!isExpanding) {
+                                                    isExpanding = true
+                                                    coroutineScope.launch {
+                                                        val expanded = GenerativeExpandEngine.expand(cur, 1.25f)
+                                                        bitmap = expanded
+                                                        isExpanding = false
+                                                        commitHistory(overlays, expanded)
+                                                        Toast.makeText(context, "Canvas Expanded (1.25x)!", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            },
+                                            enabled = !isExpanding,
+                                            colors = ButtonDefaults.buttonColors(containerColor = Amber, contentColor = Ink900),
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
+                                            Text(if (isExpanding) "Expanding..." else "Expand +25%", fontWeight = FontWeight.Bold)
+                                        }
+
+                                        Button(
+                                            onClick = {
+                                                val cur = bitmap ?: return@Button
+                                                if (!isExpanding) {
+                                                    isExpanding = true
+                                                    coroutineScope.launch {
+                                                        val expanded = GenerativeExpandEngine.expand(cur, 1.5f)
+                                                        bitmap = expanded
+                                                        isExpanding = false
+                                                        commitHistory(overlays, expanded)
+                                                        Toast.makeText(context, "Canvas Expanded (1.5x)!", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            },
+                                            enabled = !isExpanding,
+                                            colors = ButtonDefaults.buttonColors(containerColor = Ink750, contentColor = Color.White),
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
+                                            Text(if (isExpanding) "Expanding..." else "Expand +50%", fontWeight = FontWeight.Bold)
+                                        }
                                     }
                                 }
                             }

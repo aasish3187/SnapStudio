@@ -35,6 +35,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
@@ -74,6 +76,9 @@ fun GalleryScreen(onBack: () -> Unit) {
     val coroutineScope = rememberCoroutineScope()
     var mediaList by remember { mutableStateOf<List<GalleryMediaItem>>(emptyList()) }
     var selectedMediaItem by remember { mutableStateOf<GalleryMediaItem?>(null) }
+    var isMultiSelectMode by remember { mutableStateOf(false) }
+    var selectedUris by remember { mutableStateOf(setOf<Uri>()) }
+    var showBatchDeleteDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
@@ -121,9 +126,14 @@ fun GalleryScreen(onBack: () -> Unit) {
         }
     }
 
-    // Intercept hardware / gesture back button when viewing full media
-    BackHandler(enabled = selectedMediaItem != null) {
-        selectedMediaItem = null
+    // Intercept hardware / gesture back button when viewing full media or multi-selecting
+    BackHandler(enabled = selectedMediaItem != null || isMultiSelectMode) {
+        if (selectedMediaItem != null) {
+            selectedMediaItem = null
+        } else if (isMultiSelectMode) {
+            isMultiSelectMode = false
+            selectedUris = emptySet()
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -175,40 +185,105 @@ fun GalleryScreen(onBack: () -> Unit) {
         } else {
             // Grid View
             Column(modifier = Modifier.fillMaxSize()) {
-                // Header
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
+                // Dynamic Header (Regular vs Multi-Select)
+                if (isMultiSelectMode) {
+                    Row(
                         modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(Ink750)
-                            .clickable { onBack() },
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Outlined.ChevronLeft, contentDescription = "Back", tint = Fg)
-                    }
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Ink750)
+                                .clickable {
+                                    isMultiSelectMode = false
+                                    selectedUris = emptySet()
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Outlined.Close, contentDescription = "Exit Selection", tint = Fg)
+                        }
 
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Photos & Videos", color = Fg, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                        Text("${mediaList.size} items", color = FgFaint, fontSize = 12.sp)
-                    }
+                        Text(
+                            text = "${selectedUris.size} Selected",
+                            color = Fg,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
 
-                    Box(
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(
+                                onClick = {
+                                    selectedUris = if (selectedUris.size == mediaList.size) emptySet() else mediaList.map { it.uri }.toSet()
+                                }
+                            ) {
+                                Text(
+                                    text = if (selectedUris.size == mediaList.size) "Deselect All" else "Select All",
+                                    color = Amber,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            if (selectedUris.isNotEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFFF453A))
+                                        .clickable { showBatchDeleteDialog = true },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.DeleteOutline,
+                                        contentDescription = "Delete Selected",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Row(
                         modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(Amber)
-                            .clickable { onBack() },
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .padding(horizontal = 16.dp, vertical = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Outlined.CameraAlt, contentDescription = "Camera", tint = Ink900, modifier = Modifier.size(20.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Ink750)
+                                .clickable { onBack() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Outlined.ChevronLeft, contentDescription = "Back", tint = Fg)
+                        }
+
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Photos & Videos", color = Fg, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                            Text("${mediaList.size} items", color = FgFaint, fontSize = 12.sp)
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Amber)
+                                .clickable { onBack() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Outlined.CameraAlt, contentDescription = "Camera", tint = Ink900, modifier = Modifier.size(20.dp))
+                        }
                     }
                 }
 
@@ -223,6 +298,8 @@ fun GalleryScreen(onBack: () -> Unit) {
                 ) {
                     items(mediaList) { item ->
                         var bitmap by remember(item.uri) { mutableStateOf<android.graphics.Bitmap?>(null) }
+                        val isSelected = selectedUris.contains(item.uri)
+
                         LaunchedEffect(item.uri) {
                             withContext(Dispatchers.IO) {
                                 try {
@@ -243,8 +320,25 @@ fun GalleryScreen(onBack: () -> Unit) {
                             modifier = Modifier
                                 .aspectRatio(3f / 4f)
                                 .background(Ink800)
-                                .clickable {
-                                    selectedMediaItem = item
+                                .pointerInput(isMultiSelectMode, item.uri) {
+                                    detectTapGestures(
+                                        onLongPress = {
+                                            if (!isMultiSelectMode) {
+                                                isMultiSelectMode = true
+                                                selectedUris = setOf(item.uri)
+                                            }
+                                        },
+                                        onTap = {
+                                            if (isMultiSelectMode) {
+                                                selectedUris = if (isSelected) selectedUris - item.uri else selectedUris + item.uri
+                                                if (selectedUris.isEmpty()) {
+                                                    isMultiSelectMode = false
+                                                }
+                                            } else {
+                                                selectedMediaItem = item
+                                            }
+                                        }
+                                    )
                                 }
                         ) {
                             bitmap?.let { b ->
@@ -273,10 +367,92 @@ fun GalleryScreen(onBack: () -> Unit) {
                                     )
                                 }
                             }
+
+                            // Multi-Select Checkmark Badge
+                            if (isMultiSelectMode) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(6.dp)
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(if (isSelected) Amber else Color.Black.copy(alpha = 0.5f))
+                                        .border(1.5.dp, if (isSelected) Amber else Color.White, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (isSelected) {
+                                        Icon(
+                                            Icons.Outlined.Check,
+                                            contentDescription = "Selected",
+                                            tint = Ink900,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
+        }
+
+        // Batch Delete Confirmation Dialog
+        if (showBatchDeleteDialog) {
+            AlertDialog(
+                onDismissRequest = { showBatchDeleteDialog = false },
+                containerColor = Ink800,
+                title = {
+                    Text(
+                        text = "Delete ${selectedUris.size} Items?",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
+                },
+                text = {
+                    Text(
+                        text = "These ${selectedUris.size} photos and videos will be permanently deleted from your SnapStudio gallery.",
+                        color = FgMuted,
+                        fontSize = 14.sp
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showBatchDeleteDialog = false
+                            val toDeleteUris = selectedUris.toList()
+                            coroutineScope.launch {
+                                withContext(Dispatchers.IO) {
+                                    for (uri in toDeleteUris) {
+                                        try {
+                                            context.contentResolver.delete(uri, null, null)
+                                        } catch (e: Exception) {
+                                            e.printStackTrace()
+                                        }
+                                    }
+                                }
+                                mediaList = mediaList.filter { !toDeleteUris.contains(it.uri) }
+                                selectedUris = emptySet()
+                                isMultiSelectMode = false
+                                Toast.makeText(context, "${toDeleteUris.size} items deleted", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFFF453A),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Delete All", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showBatchDeleteDialog = false }) {
+                        Text("Cancel", color = FgMuted)
+                    }
+                },
+                shape = RoundedCornerShape(20.dp)
+            )
         }
     }
 }
