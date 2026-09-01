@@ -2,9 +2,7 @@ package com.snapstudio.app.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,81 +25,57 @@ fun BackgroundRemoverPanel(
     isEraseMode: Boolean,
     onToggleErase: (Boolean) -> Unit,
     isProcessing: Boolean,
-    processingText: String = "Processing AI...",
+    processingText: String = "Removing Background...",
     onRemoveBackground: () -> Unit,
-    onRemoveSubject: () -> Unit,
-    onRemoveSky: () -> Unit,
     onApplyBrushErase: () -> Unit,
     onClearSelection: () -> Unit,
-    onGenerativeReplace: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Direct 1-Tap AI Removal Chips Row
-        Row(
+        // Primary 1-Tap Background Removal Button
+        Button(
+            onClick = onRemoveBackground,
+            enabled = !isProcessing,
+            colors = ButtonDefaults.buttonColors(containerColor = Amber, contentColor = Ink900),
+            shape = RoundedCornerShape(12.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .height(44.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            Text("1-Tap AI:", color = Amber, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-
-            // 1-Tap Remove Background
-            Button(
-                onClick = onRemoveBackground,
-                enabled = !isProcessing,
-                colors = ButtonDefaults.buttonColors(containerColor = Amber, contentColor = Ink900),
-                shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
-            ) {
-                Text("🌄 Remove Background", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            if (isProcessing) {
+                CircularProgressIndicator(
+                    color = Ink900,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(processingText, color = Ink900, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            } else {
+                Icon(
+                    Icons.Outlined.AutoFixHigh,
+                    contentDescription = null,
+                    tint = Ink900,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("🌄 1-Tap Remove Background", fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
-
-            // 1-Tap Remove Subject
-            Button(
-                onClick = onRemoveSubject,
-                enabled = !isProcessing,
-                colors = ButtonDefaults.buttonColors(containerColor = Ink800, contentColor = Color.White),
-                shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
-            ) {
-                Text("👤 Remove Subject", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-            }
-
-            // 1-Tap Remove Sky
-            Button(
-                onClick = onRemoveSky,
-                enabled = !isProcessing,
-                colors = ButtonDefaults.buttonColors(containerColor = Ink800, contentColor = Color.White),
-                shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
-            ) {
-                Text("☁️ Remove Sky", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-            }
-
-            // Generative Fill
-            AssistChip(
-                onClick = onGenerativeReplace,
-                label = { Text("🪄 Gen Replace", fontSize = 11.sp, color = Amber) },
-                colors = AssistChipDefaults.assistChipColors(containerColor = Ink800),
-                border = AssistChipDefaults.assistChipBorder(borderColor = Amber.copy(alpha = 0.5f))
-            )
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         // Manual Brush Size Slider for Custom Erasing
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Brush", color = FgFaint, fontSize = 11.sp, modifier = Modifier.width(36.dp))
+            Text("Brush", color = FgFaint, fontSize = 11.sp, modifier = Modifier.width(38.dp))
             Slider(
                 value = brushSize,
                 onValueChange = onBrushSizeChanged,
@@ -191,8 +165,8 @@ fun BackgroundRemoverPanel(
                 onClick = onApplyBrushErase,
                 enabled = !isProcessing,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Amber,
-                    contentColor = Ink900,
+                    containerColor = Ink800,
+                    contentColor = Color.White,
                     disabledContainerColor = Ink750,
                     disabledContentColor = FgMuted
                 ),
@@ -202,29 +176,19 @@ fun BackgroundRemoverPanel(
                     .height(40.dp),
                 contentPadding = PaddingValues(horizontal = 10.dp)
             ) {
-                if (isProcessing) {
-                    CircularProgressIndicator(
-                        color = Ink900,
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(processingText, color = Ink900, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                } else {
-                    Icon(
-                        Icons.Outlined.AutoFixHigh,
-                        contentDescription = null,
-                        tint = Ink900,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Erase Brushed Area",
-                        color = Ink900,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
-                }
+                Icon(
+                    Icons.Outlined.CleaningServices,
+                    contentDescription = null,
+                    tint = Amber,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Erase Brushed Area",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
             }
         }
     }

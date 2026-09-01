@@ -1360,58 +1360,6 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                     Text("Preview Active • Tap ✓ to Apply or ❌ to Cancel", color = FgMuted, fontSize = 13.sp)
                                 }
                             }
-                            "gen_fill" -> {
-                                var isExpanding by remember { mutableStateOf(false) }
-                                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.fillMaxSize().padding(16.dp)) {
-                                    Text("AI Generative Expand & Outpainting", color = Amber, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text("Synthesizes natural background textures to un-crop photos", color = FgMuted, fontSize = 12.sp)
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                        Button(
-                                            onClick = {
-                                                val cur = bitmap ?: return@Button
-                                                if (!isExpanding) {
-                                                    isExpanding = true
-                                                    coroutineScope.launch {
-                                                        val expanded = GenerativeExpandEngine.expand(cur, 1.25f)
-                                                        bitmap = expanded
-                                                        isExpanding = false
-                                                        commitHistory(overlays, expanded)
-                                                        Toast.makeText(context, "Canvas Expanded (1.25x)!", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
-                                            },
-                                            enabled = !isExpanding,
-                                            colors = ButtonDefaults.buttonColors(containerColor = Amber, contentColor = Ink900),
-                                            shape = RoundedCornerShape(12.dp)
-                                        ) {
-                                            Text(if (isExpanding) "Expanding..." else "Expand +25%", fontWeight = FontWeight.Bold)
-                                        }
-
-                                        Button(
-                                            onClick = {
-                                                val cur = bitmap ?: return@Button
-                                                if (!isExpanding) {
-                                                    isExpanding = true
-                                                    coroutineScope.launch {
-                                                        val expanded = GenerativeExpandEngine.expand(cur, 1.5f)
-                                                        bitmap = expanded
-                                                        isExpanding = false
-                                                        commitHistory(overlays, expanded)
-                                                        Toast.makeText(context, "Canvas Expanded (1.5x)!", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
-                                            },
-                                            enabled = !isExpanding,
-                                            colors = ButtonDefaults.buttonColors(containerColor = Ink750, contentColor = Color.White),
-                                            shape = RoundedCornerShape(12.dp)
-                                        ) {
-                                            Text(if (isExpanding) "Expanding..." else "Expand +50%", fontWeight = FontWeight.Bold)
-                                        }
-                                    }
-                                }
-                            }
                             "object_remove", "healing" -> {
                                 BackgroundRemoverPanel(
                                     brushSize = healingBrushSize,
@@ -1434,44 +1382,6 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                                     e.printStackTrace()
                                                     isHealingInProgress = false
                                                     Toast.makeText(context, "Failed to remove background", Toast.LENGTH_SHORT).show()
-                                                }
-                                            }
-                                        }
-                                    },
-                                    onRemoveSubject = {
-                                        val cur = bitmap ?: return@BackgroundRemoverPanel
-                                        if (!isHealingInProgress) {
-                                            isHealingInProgress = true
-                                            coroutineScope.launch {
-                                                try {
-                                                    val removed = AiSegmentationEngine.removeSubject(cur)
-                                                    bitmap = removed
-                                                    commitHistory(overlays, removed)
-                                                    isHealingInProgress = false
-                                                    Toast.makeText(context, "✨ Subject Removed with AI!", Toast.LENGTH_SHORT).show()
-                                                } catch (e: Exception) {
-                                                    e.printStackTrace()
-                                                    isHealingInProgress = false
-                                                    Toast.makeText(context, "Failed to remove subject", Toast.LENGTH_SHORT).show()
-                                                }
-                                            }
-                                        }
-                                    },
-                                    onRemoveSky = {
-                                        val cur = bitmap ?: return@BackgroundRemoverPanel
-                                        if (!isHealingInProgress) {
-                                            isHealingInProgress = true
-                                            coroutineScope.launch {
-                                                try {
-                                                    val removed = AiSegmentationEngine.removeSky(cur)
-                                                    bitmap = removed
-                                                    commitHistory(overlays, removed)
-                                                    isHealingInProgress = false
-                                                    Toast.makeText(context, "✨ Sky Removed with AI!", Toast.LENGTH_SHORT).show()
-                                                } catch (e: Exception) {
-                                                    e.printStackTrace()
-                                                    isHealingInProgress = false
-                                                    Toast.makeText(context, "Failed to remove sky", Toast.LENGTH_SHORT).show()
                                                 }
                                             }
                                         }
@@ -1504,9 +1414,6 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                     onClearSelection = {
                                         healingMaskEngine.clear()
                                         healingMaskVersion++
-                                    },
-                                    onGenerativeReplace = {
-                                        showGenerativeReplaceDialog = true
                                     }
                                 )
                             }
