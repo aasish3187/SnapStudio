@@ -932,6 +932,20 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                             .fillMaxSize()
                             .padding(4.dp)
                             .drawWithContent {
+                                // Draw transparency checkerboard tile pattern
+                                val checkSize = 28f
+                                val cols = (size.width / checkSize).toInt() + 1
+                                val rows = (size.height / checkSize).toInt() + 1
+                                for (r in 0 until rows) {
+                                    for (c in 0 until cols) {
+                                        val isEven = (r + c) % 2 == 0
+                                        drawRect(
+                                            color = if (isEven) Color(0xFF242424) else Color(0xFF1A1A1A),
+                                            topLeft = androidx.compose.ui.geometry.Offset(c * checkSize, r * checkSize),
+                                            size = androidx.compose.ui.geometry.Size(checkSize, checkSize)
+                                        )
+                                    }
+                                }
                                 drawContent()
                                 val b = bitmap
                                 if (!isComparingOriginal && b != null) {
