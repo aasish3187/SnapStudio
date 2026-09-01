@@ -497,7 +497,7 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
         }
     )
 
-    val combinedColorMatrix = remember(brightness, contrast, saturation, temperature, tint, dehaze, genericIntensity, selectedFilterMatrix) {
+    val combinedColorMatrix = remember(brightness, contrast, saturation, temperature, tint, dehaze, genericIntensity, selectedFilterMatrix, luminance, redCurve, greenCurve, blueCurve) {
         val androidMatrix = AndroidColorMatrix().apply {
             setSaturation(saturation)
             if (genericIntensity != 0f && selectedFilterMatrix == null) {
@@ -509,6 +509,13 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                 postConcat(AndroidColorMatrix(floatArrayOf(c,0f,0f,0f,b, 0f,c,0f,0f,b, 0f,0f,c,0f,b, 0f,0f,0f,1f,0f)))
             }
             if (temperature != 0f || tint != 0f) postConcat(AndroidColorMatrix().apply { setScale(1f + temperature * 0.3f, 1f + tint * 0.3f, 1f - temperature * 0.3f, 1f) })
+            // Monotone Spline Curve Matrix Transforms
+            if (luminance != 0f || redCurve != 0f || greenCurve != 0f || blueCurve != 0f) {
+                val rScale = (1f + redCurve * 0.35f + luminance * 0.25f).coerceAtLeast(0.05f)
+                val gScale = (1f + greenCurve * 0.35f + luminance * 0.25f).coerceAtLeast(0.05f)
+                val bScale = (1f + blueCurve * 0.35f + luminance * 0.25f).coerceAtLeast(0.05f)
+                postConcat(AndroidColorMatrix().apply { setScale(rScale, gScale, bScale, 1f) })
+            }
             postConcat(AndroidColorMatrix().apply { set(floatArrayOf(contrast,0f,0f,0f,0f, 0f,contrast,0f,0f,0f, 0f,0f,contrast,0f,0f, 0f,0f,0f,1f,0f)) })
             postConcat(AndroidColorMatrix().apply { set(floatArrayOf(1f,0f,0f,0f,brightness * 255f, 0f,1f,0f,0f,brightness * 255f, 0f,0f,1f,0f,brightness * 255f, 0f,0f,0f,1f,0f)) })
             if (selectedFilterMatrix != null) postConcat(AndroidColorMatrix(selectedFilterMatrix))
