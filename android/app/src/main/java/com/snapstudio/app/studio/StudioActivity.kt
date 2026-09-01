@@ -1495,7 +1495,7 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                     .background(Ink850)
             ) {
                 Column {
-                    Box(modifier = Modifier.fillMaxWidth().height(190.dp), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.fillMaxWidth().wrapContentHeight().heightIn(min = 190.dp), contentAlignment = Alignment.Center) {
                         when (activeTab) {
                             "selective" -> {
                                 val selectedPoint = selectivePoints.firstOrNull { it.id == selectedPointId } ?: selectivePoints.lastOrNull()

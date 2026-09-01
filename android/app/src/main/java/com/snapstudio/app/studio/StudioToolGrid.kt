@@ -79,7 +79,7 @@ val ALL_STUDIO_TOOLS = listOf(
 
     // AI TOOLS
     StudioTool("object_remove", "Background Remover", Icons.Outlined.AutoFixHigh, StudioCategory.FIX, isNew = true),
-    StudioTool("face_restore", "Face Restore", Icons.Outlined.FaceRetouchingNatural, StudioCategory.REFINE, isNew = true)
+    StudioTool("face_restore", "AI Portrait", Icons.Outlined.FaceRetouchingNatural, StudioCategory.REFINE, isNew = true)
 )
 
 val VIDEO_STUDIO_TOOLS = listOf(
