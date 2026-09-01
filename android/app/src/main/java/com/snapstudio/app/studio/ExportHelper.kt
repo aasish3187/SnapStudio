@@ -8,6 +8,8 @@ import android.graphics.Canvas
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -21,7 +23,11 @@ object ExportHelper {
         colorMatrixArray: FloatArray?,
         overlays: List<OverlayItem>,
         vignetteStrength: Float = 0f,
-        frameStyle: String = "none"
+        grainStrength: Float = 0f,
+        lightLeakStrength: Float = 0f,
+        frameStyle: String = "none",
+        doubleExposureBitmap: Bitmap? = null,
+        doubleExposureOpacity: Float = 0.5f
     ): Uri? {
         return withContext(Dispatchers.IO) {
             val contentResolver = context.contentResolver
@@ -35,55 +41,57 @@ object ExportHelper {
             val canvas = Canvas(resultBitmap)
             val paint = Paint()
 
-            // Construct ColorMatrix
+            // 1. Construct and apply ColorMatrix
             val colorMatrix = if (colorMatrixArray != null) ColorMatrix(colorMatrixArray) else ColorMatrix()
-
             paint.colorFilter = ColorMatrixColorFilter(colorMatrix)
             canvas.drawBitmap(sourceBitmap, 0f, 0f, paint)
-            
-            // Draw Overlays
-            // Map UI coordinates to Bitmap coordinates roughly.
-            // In a real app we'd measure the Box size to get exact UI scale. 
-            // For now, assume a 1080p screen and a standard scale factor of ~3x
+            paint.colorFilter = null
+
+            // 2. Double Exposure Blend (Screen Mode)
+            if (doubleExposureBitmap != null && doubleExposureOpacity > 0f) {
+                val dePaint = Paint().apply {
+                    alpha = (doubleExposureOpacity * 255).toInt().coerceIn(0, 255)
+                    xfermode = PorterDuffXfermode(PorterDuff.Mode.SCREEN)
+                }
+                val destRect = android.graphics.Rect(0, 0, sourceBitmap.width, sourceBitmap.height)
+                canvas.drawBitmap(doubleExposureBitmap, null, destRect, dePaint)
+            }
+
+            // 3. Draw Overlays (Text, Badges, Custom Stickers)
             val uiScaleToBitmap = Math.max(sourceBitmap.width / 1080f, 1f)
-            
             val textPaint = android.graphics.Paint().apply {
                 isAntiAlias = true
                 textAlign = android.graphics.Paint.Align.CENTER
             }
-            
+
             overlays.forEach { overlay ->
                 canvas.save()
-                // Move to center of bitmap, then apply offset scaled up
                 canvas.translate(
                     sourceBitmap.width / 2f + overlay.x * uiScaleToBitmap,
                     sourceBitmap.height / 2f + overlay.y * uiScaleToBitmap
                 )
-                // Compose rotation is in degrees clockwise
                 canvas.rotate(overlay.rotation)
                 canvas.scale(overlay.scale, overlay.scale)
-                
+
                 if (overlay.type == OverlayType.TEXT) {
                     val fontFam = when(overlay.fontFamily) {
                         "serif" -> android.graphics.Typeface.SERIF
                         "mono" -> android.graphics.Typeface.MONOSPACE
-                        "cursive" -> android.graphics.Typeface.SERIF // Cursive doesn't exist natively, fallback to Serif
                         else -> android.graphics.Typeface.SANS_SERIF
                     }
                     textPaint.typeface = android.graphics.Typeface.create(fontFam, android.graphics.Typeface.BOLD)
-                    
+
                     textPaint.color = android.graphics.Color.argb(
                         (overlay.color.alpha * 255).toInt(),
                         (overlay.color.red * 255).toInt(),
                         (overlay.color.green * 255).toInt(),
                         (overlay.color.blue * 255).toInt()
                     )
-                    textPaint.textSize = 48f * 3f * uiScaleToBitmap // matching 48.sp
-                    textPaint.clearShadowLayer() // No shadow
-                    
+                    textPaint.textSize = 48f * 3f * uiScaleToBitmap
+
                     val textWidth = textPaint.measureText(overlay.content)
                     val textHeight = textPaint.textSize
-                    
+
                     if (overlay.bgStyle != "none") {
                         val bgPaint = android.graphics.Paint().apply {
                             color = android.graphics.Color.argb(128, 0, 0, 0)
@@ -103,13 +111,12 @@ object ExportHelper {
                             canvas.drawRect(rect, bgPaint)
                         }
                     }
-                    
+
                     canvas.drawText(overlay.content, 0f, 0f, textPaint)
                 } else if (overlay.type == OverlayType.STICKER) {
                     textPaint.textSize = 20f * 3f * uiScaleToBitmap
                     textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
                     textPaint.color = android.graphics.Color.WHITE
-                    textPaint.clearShadowLayer()
                     val textWidth = textPaint.measureText(overlay.content)
                     val textHeight = textPaint.textSize
                     val paddingX = 10f * 3f * uiScaleToBitmap
@@ -133,7 +140,7 @@ object ExportHelper {
                     )
                     canvas.drawRoundRect(rect, 6f * 3f * uiScaleToBitmap, 6f * 3f * uiScaleToBitmap, bgPaint)
                     canvas.drawRoundRect(rect, 6f * 3f * uiScaleToBitmap, 6f * 3f * uiScaleToBitmap, borderPaint)
-                    canvas.drawText(overlay.content, -textWidth/2f, 0f, textPaint)
+                    canvas.drawText(overlay.content, 0f, 0f, textPaint)
                 } else if (overlay.type == OverlayType.IMAGE_STICKER) {
                     try {
                         val stickerUri = Uri.parse(overlay.content)
@@ -151,10 +158,34 @@ object ExportHelper {
                         e.printStackTrace()
                     }
                 }
-                
+
                 canvas.restore()
             }
-            
+
+            // 4. Draw Light Leak (Screen mode flare)
+            if (lightLeakStrength > 0f) {
+                val leakPaint = Paint().apply {
+                    xfermode = PorterDuffXfermode(PorterDuff.Mode.SCREEN)
+                    shader = android.graphics.LinearGradient(
+                        0f, 0f, sourceBitmap.width * 0.7f, sourceBitmap.height * 0.7f,
+                        android.graphics.Color.argb((lightLeakStrength * 100).toInt(), 255, 87, 34),
+                        android.graphics.Color.TRANSPARENT,
+                        android.graphics.Shader.TileMode.CLAMP
+                    )
+                }
+                canvas.drawRect(0f, 0f, sourceBitmap.width.toFloat(), sourceBitmap.height.toFloat(), leakPaint)
+            }
+
+            // 5. Draw Film Grain (Overlay Blend)
+            if (grainStrength > 0f) {
+                val grainPaint = Paint().apply {
+                    color = android.graphics.Color.argb((grainStrength * 40).toInt().coerceIn(0, 255), 255, 255, 255)
+                    xfermode = PorterDuffXfermode(PorterDuff.Mode.OVERLAY)
+                }
+                canvas.drawRect(0f, 0f, sourceBitmap.width.toFloat(), sourceBitmap.height.toFloat(), grainPaint)
+            }
+
+            // 6. Draw Vignette (Radial gradient falloff)
             if (vignetteStrength > 0f) {
                 val cx = sourceBitmap.width / 2f
                 val cy = sourceBitmap.height / 2f
@@ -166,48 +197,48 @@ object ExportHelper {
                 val radialGradient = android.graphics.RadialGradient(
                     cx, cy, radius, colors, null, android.graphics.Shader.TileMode.CLAMP
                 )
-                val vignettePaint = android.graphics.Paint().apply {
+                val vignettePaint = Paint().apply {
                     shader = radialGradient
                 }
                 canvas.drawRect(0f, 0f, sourceBitmap.width.toFloat(), sourceBitmap.height.toFloat(), vignettePaint)
             }
-            
-            // Draw frames
+
+            // 7. Draw Frames (White border, Cinematic letterbox, Polaroid)
             if (frameStyle != "none") {
-                val paint = android.graphics.Paint()
+                val framePaint = Paint()
                 val w = sourceBitmap.width.toFloat()
                 val h = sourceBitmap.height.toFloat()
-                if (frameStyle == "white_border") {
-                    paint.color = android.graphics.Color.WHITE
+                if (frameStyle == "white_border" || frameStyle == "white") {
+                    framePaint.color = android.graphics.Color.WHITE
                     val borderW = w * 0.05f
                     val borderH = h * 0.05f
-                    canvas.drawRect(0f, 0f, w, borderH, paint)
-                    canvas.drawRect(0f, h - borderH, w, h, paint)
-                    canvas.drawRect(0f, 0f, borderW, h, paint)
-                    canvas.drawRect(w - borderW, 0f, w, h, paint)
+                    canvas.drawRect(0f, 0f, w, borderH, framePaint)
+                    canvas.drawRect(0f, h - borderH, w, h, framePaint)
+                    canvas.drawRect(0f, 0f, borderW, h, framePaint)
+                    canvas.drawRect(w - borderW, 0f, w, h, framePaint)
                 } else if (frameStyle == "cinematic") {
-                    paint.color = android.graphics.Color.BLACK
-                    val barH = h * 0.15f
-                    canvas.drawRect(0f, 0f, w, barH, paint)
-                    canvas.drawRect(0f, h - barH, w, h, paint)
+                    framePaint.color = android.graphics.Color.BLACK
+                    val barH = h * 0.12f
+                    canvas.drawRect(0f, 0f, w, barH, framePaint)
+                    canvas.drawRect(0f, h - barH, w, h, framePaint)
                 } else if (frameStyle == "polaroid") {
-                    paint.color = android.graphics.Color.WHITE
+                    framePaint.color = android.graphics.Color.WHITE
                     val borderW = w * 0.05f
                     val borderTop = h * 0.05f
                     val borderBottom = h * 0.20f
-                    canvas.drawRect(0f, 0f, w, borderTop, paint)
-                    canvas.drawRect(0f, h - borderBottom, w, h, paint)
-                    canvas.drawRect(0f, 0f, borderW, h, paint)
-                    canvas.drawRect(w - borderW, 0f, w, h, paint)
+                    canvas.drawRect(0f, 0f, w, borderTop, framePaint)
+                    canvas.drawRect(0f, h - borderBottom, w, h, framePaint)
+                    canvas.drawRect(0f, 0f, borderW, h, framePaint)
+                    canvas.drawRect(w - borderW, 0f, w, h, framePaint)
                 }
             }
 
-            // Save to MediaStore (Save as Copy)
+            // 7. Save High-Res JPEG to MediaStore Pictures/SnapStudio
             val name = "SnapStudio-Edit-${System.currentTimeMillis()}.jpg"
             val contentValues = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, name)
                 put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
-                if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     put(MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/SnapStudio")
                 }
             }
@@ -215,15 +246,12 @@ object ExportHelper {
             val savedUri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
             if (savedUri != null) {
                 contentResolver.openOutputStream(savedUri)?.use { out ->
-                    resultBitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+                    resultBitmap.compress(Bitmap.CompressFormat.JPEG, 96, out)
                 }
             }
 
-            // Cleanup
             resultBitmap.recycle()
-
             savedUri
         }
     }
 }
-

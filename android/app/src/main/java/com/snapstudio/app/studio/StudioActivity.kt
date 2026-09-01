@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
@@ -56,8 +57,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.snapstudio.app.studio.FaceRetouchEngine
+import com.snapstudio.app.studio.LensBlurEngine
 import com.snapstudio.app.ui.components.ChromeButton
+import com.snapstudio.app.ui.components.FaceRestorePanel
 import com.snapstudio.app.ui.components.HealingPanel
+import com.snapstudio.app.ui.components.LensBlurPanel
 import com.snapstudio.app.ui.components.SelectiveBrushPanel
 import com.snapstudio.app.ui.components.SelectiveMode
 import com.snapstudio.app.ui.theme.*
@@ -228,6 +233,17 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
     var isHealingInProgress by remember { mutableStateOf(false) }
     var healingMaskVersion by remember { mutableStateOf(0) }
 
+    // Lens Blur & Bokeh State
+    var lensBlurStrength by remember { mutableStateOf(0.4f) }
+    var lensBlurShape by remember { mutableStateOf(LensBlurEngine.BlurShape.CIRCULAR) }
+    var lensBlurFocalSize by remember { mutableStateOf(0.35f) }
+
+    // Face Retouch State
+    var faceSkinSmooth by remember { mutableStateOf(0.5f) }
+    var faceEyeClarity by remember { mutableStateOf(0.4f) }
+    var faceSkinGlow by remember { mutableStateOf(0.25f) }
+    var isFaceProcessing by remember { mutableStateOf(false) }
+
     var canvasScale by remember { mutableStateOf(1f) }
     var canvasOffset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
     
@@ -359,6 +375,11 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
         }
     }
 
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val settingsManager = remember { com.snapstudio.app.settings.SettingsManager(context) }
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+
     var toolSnapshot by remember { mutableStateOf<ToolSnapshot?>(null) }
 
     fun captureSnapshot(): ToolSnapshot {
@@ -434,6 +455,19 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
             selectiveShowRubylith = false
             maskVersion++
             commitHistory(overlays, composited)
+        } else if (activeTab == "lens_blur" && bitmap != null && lensBlurStrength > 0f) {
+            val cur = bitmap!!
+            coroutineScope.launch {
+                val blurred = LensBlurEngine.applyLensBlur(
+                    source = cur,
+                    shape = lensBlurShape,
+                    blurRadius = (lensBlurStrength * 25).toInt().coerceIn(2, 35),
+                    focalSize = lensBlurFocalSize
+                )
+                bitmap = blurred
+                commitHistory(overlays, blurred)
+                Toast.makeText(context, "Lens Blur Applied!", Toast.LENGTH_SHORT).show()
+            }
         } else {
             commitHistory(overlays, bitmap)
         }
@@ -444,11 +478,6 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
     var videoTrimStart by remember { mutableStateOf(0L) }
     var videoTrimEnd by remember { mutableStateOf(-1L) }
     var isExporting by remember { mutableStateOf(false) }
-    
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-    val settingsManager = remember { com.snapstudio.app.settings.SettingsManager(context) }
-    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     
     val exoPlayer = remember {
         if (isVideo) {
@@ -612,7 +641,18 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                         } else {
                             coroutineScope.launch {
                                 val currentBitmap = bitmap ?: return@launch
-                                val savedUri = ExportHelper.flattenAndExport(context, currentBitmap, combinedColorMatrix, overlays, vignetteStrength, frameStyle)
+                                val savedUri = ExportHelper.flattenAndExport(
+                                    context = context,
+                                    sourceBitmap = currentBitmap,
+                                    colorMatrixArray = combinedColorMatrix,
+                                    overlays = overlays,
+                                    vignetteStrength = vignetteStrength,
+                                    grainStrength = grainStrength,
+                                    lightLeakStrength = lightLeakStrength,
+                                    frameStyle = frameStyle,
+                                    doubleExposureBitmap = doubleExposureBitmap?.asAndroidBitmap(),
+                                    doubleExposureOpacity = doubleExposureOpacity
+                                )
                                 if (savedUri != null) {
                                     val intent = Intent(Intent.ACTION_SEND).apply {
                                         type = "image/jpeg"
@@ -645,7 +685,18 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                         } else {
                             coroutineScope.launch {
                                 val currentBitmap = bitmap ?: return@launch
-                                val savedUri = ExportHelper.flattenAndExport(context, currentBitmap, combinedColorMatrix, overlays, vignetteStrength, frameStyle)
+                                val savedUri = ExportHelper.flattenAndExport(
+                                    context = context,
+                                    sourceBitmap = currentBitmap,
+                                    colorMatrixArray = combinedColorMatrix,
+                                    overlays = overlays,
+                                    vignetteStrength = vignetteStrength,
+                                    grainStrength = grainStrength,
+                                    lightLeakStrength = lightLeakStrength,
+                                    frameStyle = frameStyle,
+                                    doubleExposureBitmap = doubleExposureBitmap?.asAndroidBitmap(),
+                                    doubleExposureOpacity = doubleExposureOpacity
+                                )
                                 if (savedUri != null) { Toast.makeText(context, "Saved to Photos!", Toast.LENGTH_SHORT).show(); onSaved() } else Toast.makeText(context, "Failed", Toast.LENGTH_SHORT).show()
                             }
                         }
@@ -990,6 +1041,16 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                             "light_leak" -> com.snapstudio.app.ui.components.LightLeakPanel(lightLeakStrength, {lightLeakStrength=it})
                             "frames" -> com.snapstudio.app.ui.components.FramesPanel(frameStyle, {frameStyle=it})
                             "double_exposure" -> com.snapstudio.app.ui.components.DoubleExposurePanel(doubleExposureOpacity, {doubleExposureOpacity=it}, { doubleExposurePicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) })
+                            "lens_blur" -> {
+                                LensBlurPanel(
+                                    blurStrength = lensBlurStrength,
+                                    onBlurStrengthChanged = { lensBlurStrength = it },
+                                    blurShape = lensBlurShape,
+                                    onBlurShapeChanged = { lensBlurShape = it },
+                                    focalSize = lensBlurFocalSize,
+                                    onFocalSizeChanged = { lensBlurFocalSize = it }
+                                )
+                            }
                             "vintage", "bw", "noir", "drama", "hdr_scape", "retrolux", "grunge" -> {
                                 Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                                     Text(activeTab.uppercase(), color = Amber, fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -1055,16 +1116,39 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                 )
                             }
                             "face_restore" -> {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.fillMaxSize().padding(16.dp)) {
-                                    Text("AI Face Restore", color = Amber, fontWeight = FontWeight.Bold)
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    Button(onClick = {
-                                        warmth = 0.15f; sharpening = 0.4f; structure = 0.2f
-                                        Toast.makeText(context, "Facial Clarity Enhanced!", Toast.LENGTH_SHORT).show()
-                                    }, colors = ButtonDefaults.buttonColors(containerColor = Amber, contentColor = Ink900)) {
-                                        Text("Enhance Face")
+                                FaceRestorePanel(
+                                    skinSmooth = faceSkinSmooth,
+                                    onSkinSmoothChanged = { faceSkinSmooth = it },
+                                    eyeClarity = faceEyeClarity,
+                                    onEyeClarityChanged = { faceEyeClarity = it },
+                                    skinGlow = faceSkinGlow,
+                                    onSkinGlowChanged = { faceSkinGlow = it },
+                                    isProcessing = isFaceProcessing,
+                                    onApplyEnhance = {
+                                        val cur = bitmap
+                                        if (cur != null && !isFaceProcessing) {
+                                            isFaceProcessing = true
+                                            coroutineScope.launch {
+                                                try {
+                                                    val enhanced = FaceRetouchEngine.enhancePortrait(
+                                                        source = cur,
+                                                        skinSmooth = faceSkinSmooth,
+                                                        clarity = faceEyeClarity,
+                                                        warmthGlow = faceSkinGlow
+                                                    )
+                                                    bitmap = enhanced
+                                                    commitHistory(overlays, enhanced)
+                                                    isFaceProcessing = false
+                                                    Toast.makeText(context, "Facial Retouch Applied!", Toast.LENGTH_SHORT).show()
+                                                } catch (e: Exception) {
+                                                    e.printStackTrace()
+                                                    isFaceProcessing = false
+                                                    Toast.makeText(context, "Retouch failed", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        }
                                     }
-                                }
+                                )
                             }
                             "text" -> {
                                 var customText by remember { mutableStateOf("") }
