@@ -2,7 +2,9 @@ package com.snapstudio.app.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -28,6 +30,10 @@ fun HealingPanel(
     isHealingInProgress: Boolean,
     onApplyHeal: () -> Unit,
     onClearSelection: () -> Unit,
+    onAiSelectSubject: () -> Unit = {},
+    onAiSelectBackground: () -> Unit = {},
+    onAiSelectSky: () -> Unit = {},
+    onGenerativeReplace: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -36,27 +42,46 @@ fun HealingPanel(
             .padding(horizontal = 16.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Status Tip & Tool Title
+        // AI Smart Select Chips Row
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = if (toolName == "healing") "Blemish & Spot Healing" else "Smart Object Remover",
-                color = Amber,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
+            Text("AI Smart Select:", color = Amber, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+
+            AssistChip(
+                onClick = onAiSelectSubject,
+                label = { Text("👤 Subject", fontSize = 11.sp, color = Color.White) },
+                colors = AssistChipDefaults.assistChipColors(containerColor = Ink800),
+                border = AssistChipDefaults.assistChipBorder(borderColor = Ink700)
             )
-            Text(
-                text = if (isEraseMode) "Eraser Active • Rub to unselect" else "Brush over area to remove",
-                color = if (isEraseMode) Color(0xFFFF9500) else FgMuted,
-                fontSize = 12.sp,
-                fontWeight = if (isEraseMode) FontWeight.SemiBold else FontWeight.Normal
+
+            AssistChip(
+                onClick = onAiSelectBackground,
+                label = { Text("🌄 Background", fontSize = 11.sp, color = Color.White) },
+                colors = AssistChipDefaults.assistChipColors(containerColor = Ink800),
+                border = AssistChipDefaults.assistChipBorder(borderColor = Ink700)
+            )
+
+            AssistChip(
+                onClick = onAiSelectSky,
+                label = { Text("☁️ Sky", fontSize = 11.sp, color = Color.White) },
+                colors = AssistChipDefaults.assistChipColors(containerColor = Ink800),
+                border = AssistChipDefaults.assistChipBorder(borderColor = Ink700)
+            )
+
+            AssistChip(
+                onClick = onGenerativeReplace,
+                label = { Text("🪄 Gen Replace", fontSize = 11.sp, color = Amber) },
+                colors = AssistChipDefaults.assistChipColors(containerColor = Ink800),
+                border = AssistChipDefaults.assistChipBorder(borderColor = Amber.copy(alpha = 0.5f))
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         // Brush Size Slider
         Row(
@@ -84,7 +109,7 @@ fun HealingPanel(
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         // Bottom Controls Row: Select / Erase Segmented Control, Clear, and Action Button
         Row(

@@ -26,6 +26,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Redo
@@ -240,11 +241,16 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
     var lensBlurShape by remember { mutableStateOf(LensBlurEngine.BlurShape.CIRCULAR) }
     var lensBlurFocalSize by remember { mutableStateOf(0.35f) }
 
-    // Face Retouch State
-    var faceSkinSmooth by remember { mutableStateOf(0.5f) }
-    var faceEyeClarity by remember { mutableStateOf(0.4f) }
-    var faceSkinGlow by remember { mutableStateOf(0.25f) }
+    // Face Retouch State (468-Point 3D Mesh)
+    var faceSkinSmooth by remember { mutableStateOf(0.4f) }
+    var faceEyeClarity by remember { mutableStateOf(0.35f) }
+    var faceTeethWhiten by remember { mutableStateOf(0.30f) }
+    var faceRelightIntensity by remember { mutableStateOf(0.0f) }
+    var faceRelightAngle by remember { mutableStateOf(45f) }
     var isFaceProcessing by remember { mutableStateOf(false) }
+    var showGenerativeReplaceDialog by remember { mutableStateOf(false) }
+    var generativePrompt by remember { mutableStateOf("") }
+    var isGenerativeProcessing by remember { mutableStateOf(false) }
 
     var isComparingOriginal by remember { mutableStateOf(false) }
 
@@ -610,6 +616,7 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                     onClick = { applyRedo() },
                     enabled = historyIndex < history.size - 1
                 )
+                // RAW Hold-to-Compare Button
                 Box(
                     modifier = Modifier
                         .size(36.dp)
@@ -632,6 +639,36 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = 0.5.sp
+                    )
+                }
+
+                // 1-Tap AI Auto-Enhance Button
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Amber.copy(alpha = 0.2f))
+                        .clickable {
+                            val b = bitmap ?: return@clickable
+                            coroutineScope.launch {
+                                val res = AiAutoEnhanceEngine.analyze(b)
+                                brightness = res.brightness
+                                contrast = res.contrast
+                                saturation = res.saturation
+                                ambiance = res.ambiance
+                                highlights = res.highlights
+                                shadows = res.shadows
+                                warmth = res.warmth
+                                Toast.makeText(context, "✨ AI Auto-Enhanced!", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Outlined.AutoAwesome,
+                        contentDescription = "AI Auto Enhance",
+                        tint = Amber,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
@@ -1248,7 +1285,37 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                 showMaskRubylith = selectiveShowRubylith,
                                 onToggleMaskRubylith = { selectiveShowRubylith = it },
                                 onInvertMask = { selectiveMaskEngine.invert(); maskVersion++ },
-                                onClearMask = { selectiveMaskEngine.clear(); maskVersion++ }
+                                onClearMask = { selectiveMaskEngine.clear(); maskVersion++ },
+                                onAiSelectSubject = {
+                                    val cur = bitmap ?: return@SelectiveBrushPanel
+                                    coroutineScope.launch {
+                                        val subjectMask = AiSegmentationEngine.segmentSubject(cur)
+                                        selectiveMaskEngine.restoreMask(subjectMask)
+                                        maskVersion++
+                                        selectiveShowRubylith = true
+                                        Toast.makeText(context, "👤 Subject Isolated for Grading", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                onAiSelectBackground = {
+                                    val cur = bitmap ?: return@SelectiveBrushPanel
+                                    coroutineScope.launch {
+                                        val bgMask = AiSegmentationEngine.segmentBackground(cur)
+                                        selectiveMaskEngine.restoreMask(bgMask)
+                                        maskVersion++
+                                        selectiveShowRubylith = true
+                                        Toast.makeText(context, "🌄 Background Isolated for Grading", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                onAiSelectSky = {
+                                    val cur = bitmap ?: return@SelectiveBrushPanel
+                                    coroutineScope.launch {
+                                        val skyMask = AiSegmentationEngine.segmentSky(cur)
+                                        selectiveMaskEngine.restoreMask(skyMask)
+                                        maskVersion++
+                                        selectiveShowRubylith = true
+                                        Toast.makeText(context, "☁️ Sky Isolated for Grading", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
                             )
                             "tune_image", "adjust", "colour" -> com.snapstudio.app.ui.components.TuneImagePanel(brightness, contrast, saturation, ambiance, highlights, shadows, warmth, {brightness=it}, {contrast=it}, {saturation=it}, {ambiance=it}, {highlights=it}, {shadows=it}, {warmth=it})
                             "details" -> com.snapstudio.app.ui.components.DetailsPanel(structure, sharpening, {structure=it}, {sharpening=it})
@@ -1338,6 +1405,36 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                     isEraseMode = healingIsErase,
                                     onToggleErase = { healingIsErase = it },
                                     isHealingInProgress = isHealingInProgress,
+                                    onAiSelectSubject = {
+                                        val cur = bitmap ?: return@HealingPanel
+                                        coroutineScope.launch {
+                                            val subjectMask = AiSegmentationEngine.segmentSubject(cur)
+                                            healingMaskEngine.restoreMask(subjectMask)
+                                            healingMaskVersion++
+                                            Toast.makeText(context, "👤 Subject Masked for Removal", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    onAiSelectBackground = {
+                                        val cur = bitmap ?: return@HealingPanel
+                                        coroutineScope.launch {
+                                            val bgMask = AiSegmentationEngine.segmentBackground(cur)
+                                            healingMaskEngine.restoreMask(bgMask)
+                                            healingMaskVersion++
+                                            Toast.makeText(context, "🌄 Background Masked for Removal", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    onAiSelectSky = {
+                                        val cur = bitmap ?: return@HealingPanel
+                                        coroutineScope.launch {
+                                            val skyMask = AiSegmentationEngine.segmentSky(cur)
+                                            healingMaskEngine.restoreMask(skyMask)
+                                            healingMaskVersion++
+                                            Toast.makeText(context, "☁️ Sky Masked for Removal", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    onGenerativeReplace = {
+                                        showGenerativeReplaceDialog = true
+                                    },
                                     onApplyHeal = {
                                         val cur = bitmap
                                         if (cur != null && !isHealingInProgress) {
@@ -1375,8 +1472,12 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                     onSkinSmoothChanged = { faceSkinSmooth = it },
                                     eyeClarity = faceEyeClarity,
                                     onEyeClarityChanged = { faceEyeClarity = it },
-                                    skinGlow = faceSkinGlow,
-                                    onSkinGlowChanged = { faceSkinGlow = it },
+                                    teethWhiten = faceTeethWhiten,
+                                    onTeethWhitenChanged = { faceTeethWhiten = it },
+                                    relightIntensity = faceRelightIntensity,
+                                    onRelightIntensityChanged = { faceRelightIntensity = it },
+                                    relightAngle = faceRelightAngle,
+                                    onRelightAngleChanged = { faceRelightAngle = it },
                                     isProcessing = isFaceProcessing,
                                     onApplyEnhance = {
                                         val cur = bitmap
@@ -1384,16 +1485,18 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                             isFaceProcessing = true
                                             coroutineScope.launch {
                                                 try {
-                                                    val enhanced = FaceRetouchEngine.enhancePortrait(
+                                                    val enhanced = AiFaceMeshEngine.retouchPortrait(
                                                         source = cur,
                                                         skinSmooth = faceSkinSmooth,
-                                                        clarity = faceEyeClarity,
-                                                        warmthGlow = faceSkinGlow
+                                                        eyeClarity = faceEyeClarity,
+                                                        teethWhiten = faceTeethWhiten,
+                                                        relightIntensity = faceRelightIntensity,
+                                                        relightAngleDeg = faceRelightAngle
                                                     )
                                                     bitmap = enhanced
                                                     commitHistory(overlays, enhanced)
                                                     isFaceProcessing = false
-                                                    Toast.makeText(context, "Facial Retouch Applied!", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, "✨ 468-Point AI Portrait Applied!", Toast.LENGTH_SHORT).show()
                                                 } catch (e: Exception) {
                                                     e.printStackTrace()
                                                     isFaceProcessing = false
@@ -1525,6 +1628,102 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                     }
                 }
             }
+        }
+
+        // Cloud Generative AI Replace Dialog
+        if (showGenerativeReplaceDialog) {
+            AlertDialog(
+                onDismissRequest = { if (!isGenerativeProcessing) showGenerativeReplaceDialog = false },
+                containerColor = Ink850,
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = Amber, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Gemini Generative Fill", color = Fg, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
+                },
+                text = {
+                    Column {
+                        Text(
+                            "Enter a prompt to photorealistically generate or replace the masked region:",
+                            color = FgMuted,
+                            fontSize = 13.sp
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = generativePrompt,
+                            onValueChange = { generativePrompt = it },
+                            placeholder = { Text("e.g. A vintage camera on a wooden table", color = FgMuted, fontSize = 13.sp) },
+                            singleLine = false,
+                            maxLines = 3,
+                            enabled = !isGenerativeProcessing,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Fg,
+                                unfocusedTextColor = Fg,
+                                focusedBorderColor = Amber,
+                                unfocusedBorderColor = Ink700
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        if (isGenerativeProcessing) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CircularProgressIndicator(color = Amber, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Synthesizing neural textures...", color = Amber, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val cur = bitmap
+                            if (cur != null && generativePrompt.isNotBlank() && !isGenerativeProcessing) {
+                                isGenerativeProcessing = true
+                                coroutineScope.launch {
+                                    try {
+                                        val replaced = GeminiGenerativeEngine.generativeReplace(
+                                            source = cur,
+                                            mask = healingMaskEngine.maskBitmap,
+                                            prompt = generativePrompt
+                                        )
+                                        bitmap = replaced
+                                        healingMaskEngine.clear()
+                                        healingMaskVersion++
+                                        commitHistory(overlays, replaced)
+                                        isGenerativeProcessing = false
+                                        showGenerativeReplaceDialog = false
+                                        generativePrompt = ""
+                                        Toast.makeText(context, "✨ Generative Replacement Applied!", Toast.LENGTH_SHORT).show()
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                        isGenerativeProcessing = false
+                                        Toast.makeText(context, "Generation failed", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                        },
+                        enabled = !isGenerativeProcessing && generativePrompt.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Amber, contentColor = Ink900),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Generate", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showGenerativeReplaceDialog = false },
+                        enabled = !isGenerativeProcessing
+                    ) {
+                        Text("Cancel", color = FgMuted)
+                    }
+                }
+            )
         }
     }
 }

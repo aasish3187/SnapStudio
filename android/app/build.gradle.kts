@@ -88,5 +88,11 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("io.coil-kt:coil-compose:2.5.0")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    
+    // Google ML Kit On-Device AI Suite
+    implementation("com.google.mlkit:segmentation-selfie:16.0.0-beta6")
+    implementation("com.google.mlkit:face-mesh-detection:16.0.0-beta3")
+
     implementation(project(":editing"))
 }
