@@ -255,6 +255,11 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
     var overlays by remember { mutableStateOf(listOf<OverlayItem>()) }
     var bitmap by remember { mutableStateOf<Bitmap?>(null) }
 
+    // Instant zero-lag GPU vector stroke tracking
+    val activeStrokePoints = remember { mutableStateListOf<Offset>() }
+    var activeStrokeRadius by remember { mutableStateOf(35f) }
+    var activeStrokeIsErase by remember { mutableStateOf(false) }
+
     LaunchedEffect(bitmap) {
         bitmap?.let { b ->
             selectiveMaskEngine.resizeIfNeeded(b.width, b.height)
@@ -262,7 +267,7 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
         }
     }
 
-    val liveDisplayBitmap = remember(bitmap, maskVersion, healingMaskVersion, selectiveExposureEV, selectiveTemperature, selectiveSaturation, selectiveContrast, selectiveShowRubylith, activeTab) {
+    val liveDisplayBitmap = remember(bitmap, maskVersion, selectiveExposureEV, selectiveTemperature, selectiveSaturation, selectiveContrast, selectiveShowRubylith, activeTab) {
         if ((activeTab == "brush" || activeTab == "selective") && bitmap != null) {
             SelectiveAdjustmentCompositor.composite(
                 baseBitmap = bitmap!!,
@@ -272,16 +277,6 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                 saturation = selectiveSaturation,
                 contrast = selectiveContrast,
                 showMaskRubylith = selectiveShowRubylith
-            )
-        } else if ((activeTab == "healing" || activeTab == "object_remove") && bitmap != null) {
-            SelectiveAdjustmentCompositor.composite(
-                baseBitmap = bitmap!!,
-                maskBitmap = healingMaskEngine.maskBitmap,
-                exposureEV = 0f,
-                temperature = 0f,
-                saturation = 1f,
-                contrast = 1f,
-                showMaskRubylith = true
             )
         } else {
             bitmap
@@ -779,6 +774,11 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                         val imgX = (offset.x - padX) / fitScale
                                         val imgY = (offset.y - padY) / fitScale
 
+                                        activeStrokePoints.clear()
+                                        activeStrokePoints.add(offset)
+                                        activeStrokeRadius = selectiveBrushSize
+                                        activeStrokeIsErase = selectiveIsErase
+
                                         val mappedOffset = Offset(imgX.coerceIn(0f, b.width.toFloat() - 1f), imgY.coerceIn(0f, b.height.toFloat() - 1f))
                                         val brushRadiusInBmp = (selectiveBrushSize / fitScale).coerceIn(4f, maxOf(b.width, b.height) * 0.25f)
                                         selectiveMaskEngine.startStroke(
@@ -788,7 +788,6 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                             opacity = 1f,
                                             isErase = selectiveIsErase
                                         )
-                                        maskVersion++
                                     },
                                     onDrag = { change, _ ->
                                         val b = bitmap ?: return@detectDragGestures
@@ -800,6 +799,8 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                         val imgX = (change.position.x - padX) / fitScale
                                         val imgY = (change.position.y - padY) / fitScale
 
+                                        activeStrokePoints.add(change.position)
+
                                         val mappedOffset = Offset(imgX.coerceIn(0f, b.width.toFloat() - 1f), imgY.coerceIn(0f, b.height.toFloat() - 1f))
                                         val brushRadiusInBmp = (selectiveBrushSize / fitScale).coerceIn(4f, maxOf(b.width, b.height) * 0.25f)
                                         selectiveMaskEngine.continueStroke(
@@ -809,10 +810,10 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                             opacity = 1f,
                                             isErase = selectiveIsErase
                                         )
-                                        maskVersion++
                                     },
                                     onDragEnd = {
                                         selectiveMaskEngine.endStroke()
+                                        activeStrokePoints.clear()
                                         maskVersion++
                                     }
                                 )
@@ -828,6 +829,11 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                         val imgX = (offset.x - padX) / fitScale
                                         val imgY = (offset.y - padY) / fitScale
 
+                                        activeStrokePoints.clear()
+                                        activeStrokePoints.add(offset)
+                                        activeStrokeRadius = healingBrushSize
+                                        activeStrokeIsErase = healingIsErase
+
                                         val mappedOffset = Offset(imgX.coerceIn(0f, b.width.toFloat() - 1f), imgY.coerceIn(0f, b.height.toFloat() - 1f))
                                         val brushRadiusInBmp = (healingBrushSize / fitScale).coerceIn(4f, maxOf(b.width, b.height) * 0.25f)
                                         healingMaskEngine.startStroke(
@@ -837,7 +843,6 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                             opacity = 1f,
                                             isErase = healingIsErase
                                         )
-                                        healingMaskVersion++
                                     },
                                     onDrag = { change, _ ->
                                         val b = bitmap ?: return@detectDragGestures
@@ -849,6 +854,8 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                         val imgX = (change.position.x - padX) / fitScale
                                         val imgY = (change.position.y - padY) / fitScale
 
+                                        activeStrokePoints.add(change.position)
+
                                         val mappedOffset = Offset(imgX.coerceIn(0f, b.width.toFloat() - 1f), imgY.coerceIn(0f, b.height.toFloat() - 1f))
                                         val brushRadiusInBmp = (healingBrushSize / fitScale).coerceIn(4f, maxOf(b.width, b.height) * 0.25f)
                                         healingMaskEngine.continueStroke(
@@ -858,10 +865,10 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                             opacity = 1f,
                                             isErase = healingIsErase
                                         )
-                                        healingMaskVersion++
                                     },
                                     onDragEnd = {
                                         healingMaskEngine.endStroke()
+                                        activeStrokePoints.clear()
                                         healingMaskVersion++
                                     }
                                 )
@@ -949,6 +956,32 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                                 alpha = 0.6f
                                             )
                                         }
+
+                                        // Instant 120 FPS GPU Vector Active Stroke
+                                        if (activeStrokePoints.size > 1) {
+                                            val strokePath = androidx.compose.ui.graphics.Path()
+                                            strokePath.moveTo(activeStrokePoints[0].x, activeStrokePoints[0].y)
+                                            for (i in 1 until activeStrokePoints.size) {
+                                                strokePath.lineTo(activeStrokePoints[i].x, activeStrokePoints[i].y)
+                                            }
+                                            drawPath(
+                                                path = strokePath,
+                                                color = if (activeStrokeIsErase) Color.Transparent else Color(0xFFFF2D55).copy(alpha = 0.6f),
+                                                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                                    width = activeStrokeRadius * 2f,
+                                                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                                                    join = androidx.compose.ui.graphics.StrokeJoin.Round
+                                                ),
+                                                blendMode = if (activeStrokeIsErase) BlendMode.Clear else BlendMode.SrcOver
+                                            )
+                                        } else if (activeStrokePoints.size == 1) {
+                                            drawCircle(
+                                                color = if (activeStrokeIsErase) Color.Transparent else Color(0xFFFF2D55).copy(alpha = 0.6f),
+                                                radius = activeStrokeRadius,
+                                                center = activeStrokePoints[0],
+                                                blendMode = if (activeStrokeIsErase) BlendMode.Clear else BlendMode.SrcOver
+                                            )
+                                        }
                                     }
 
                                     // Live Selective Brush Crimson Highlight
@@ -963,6 +996,33 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                                 colorFilter = ColorFilter.tint(Color(0xFFFF2D55), BlendMode.SrcIn),
                                                 alpha = 0.6f
                                             )
+                                        }
+
+                                        if (selectiveShowRubylith) {
+                                            if (activeStrokePoints.size > 1) {
+                                                val strokePath = androidx.compose.ui.graphics.Path()
+                                                strokePath.moveTo(activeStrokePoints[0].x, activeStrokePoints[0].y)
+                                                for (i in 1 until activeStrokePoints.size) {
+                                                    strokePath.lineTo(activeStrokePoints[i].x, activeStrokePoints[i].y)
+                                                }
+                                                drawPath(
+                                                    path = strokePath,
+                                                    color = if (activeStrokeIsErase) Color.Transparent else Color(0xFFFF2D55).copy(alpha = 0.6f),
+                                                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                                        width = activeStrokeRadius * 2f,
+                                                        cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                                                        join = androidx.compose.ui.graphics.StrokeJoin.Round
+                                                    ),
+                                                    blendMode = if (activeStrokeIsErase) BlendMode.Clear else BlendMode.SrcOver
+                                                )
+                                            } else if (activeStrokePoints.size == 1) {
+                                                drawCircle(
+                                                    color = if (activeStrokeIsErase) Color.Transparent else Color(0xFFFF2D55).copy(alpha = 0.6f),
+                                                    radius = activeStrokeRadius,
+                                                    center = activeStrokePoints[0],
+                                                    blendMode = if (activeStrokeIsErase) BlendMode.Clear else BlendMode.SrcOver
+                                                )
+                                            }
                                         }
                                     }
                                 }
