@@ -33,7 +33,7 @@ fun HealingPanel(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Status Tip & Tool Title
@@ -49,24 +49,25 @@ fun HealingPanel(
                 fontSize = 14.sp
             )
             Text(
-                text = "Brush over area • Tap Heal",
-                color = FgMuted,
-                fontSize = 12.sp
+                text = if (isEraseMode) "Eraser Active • Rub to unselect" else "Brush over area to remove",
+                color = if (isEraseMode) Color(0xFFFF9500) else FgMuted,
+                fontSize = 12.sp,
+                fontWeight = if (isEraseMode) FontWeight.SemiBold else FontWeight.Normal
             )
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Brush Size Slider
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Size", color = FgFaint, fontSize = 12.sp, modifier = Modifier.width(42.dp))
+            Text("Size", color = FgFaint, fontSize = 12.sp, modifier = Modifier.width(36.dp))
             Slider(
                 value = brushSize,
                 onValueChange = onBrushSizeChanged,
-                valueRange = 10f..120f,
+                valueRange = 10f..140f,
                 modifier = Modifier.weight(1f),
                 colors = SliderDefaults.colors(
                     thumbColor = Amber,
@@ -79,67 +80,73 @@ fun HealingPanel(
                 color = Fg,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 12.sp,
-                modifier = Modifier.width(48.dp)
+                modifier = Modifier.width(44.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // Bottom Controls Row: Paint/Erase, Clear, and Action Button
+        // Bottom Controls Row: Select / Erase Segmented Control, Clear, and Action Button
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Selection Paint / Erase Toggle
+            // Paint / Erase Toggle Chips
             Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .background(Ink800)
-                    .padding(4.dp),
+                    .padding(3.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Select Mode
                 Box(
                     modifier = Modifier
-                        .clip(CircleShape)
-                        .background(if (!isEraseMode) Amber.copy(alpha = 0.2f) else Color.Transparent)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (!isEraseMode) Amber else Color.Transparent)
                         .clickable { onToggleErase(false) }
-                        .padding(8.dp)
+                        .padding(horizontal = 10.dp, vertical = 7.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        Icons.Outlined.Brush,
-                        contentDescription = "Highlight Target",
-                        tint = if (!isEraseMode) Amber else FgMuted,
-                        modifier = Modifier.size(20.dp)
+                    Text(
+                        text = "Paint",
+                        color = if (!isEraseMode) Ink900 else FgMuted,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 }
 
+                // Erase Mode
                 Box(
                     modifier = Modifier
-                        .clip(CircleShape)
-                        .background(if (isEraseMode) Amber.copy(alpha = 0.2f) else Color.Transparent)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isEraseMode) Amber else Color.Transparent)
                         .clickable { onToggleErase(true) }
-                        .padding(8.dp)
+                        .padding(horizontal = 10.dp, vertical = 7.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        Icons.Outlined.AutoFixNormal,
-                        contentDescription = "Erase Selection",
-                        tint = if (isEraseMode) Amber else FgMuted,
-                        modifier = Modifier.size(20.dp)
+                    Text(
+                        text = "Erase",
+                        color = if (isEraseMode) Ink900 else FgMuted,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 }
 
+                // Clear
                 Box(
                     modifier = Modifier
                         .clip(CircleShape)
                         .clickable { onClearSelection() }
-                        .padding(8.dp)
+                        .padding(horizontal = 8.dp, vertical = 7.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         Icons.Outlined.DeleteOutline,
                         contentDescription = "Clear Selection",
                         tint = FgMuted,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
@@ -154,33 +161,33 @@ fun HealingPanel(
                     disabledContainerColor = Ink750,
                     disabledContentColor = FgMuted
                 ),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .weight(1f)
-                    .height(44.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp)
+                    .height(40.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp)
             ) {
                 if (isHealingInProgress) {
                     CircularProgressIndicator(
                         color = Ink900,
-                        strokeWidth = 2.5.dp,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Inpainting...", color = Ink900, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                } else {
-                    Icon(
-                        Icons.Outlined.Healing,
-                        contentDescription = null,
-                        tint = Ink900,
+                        strokeWidth = 2.dp,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
+                    Text("Removing...", color = Ink900, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                } else {
+                    Icon(
+                        Icons.Outlined.AutoFixHigh,
+                        contentDescription = null,
+                        tint = Ink900,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (toolName == "healing") "Heal Blemish" else "Erase Object",
+                        text = if (toolName == "healing") "Heal Area" else "Remove Object",
                         color = Ink900,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
+                        fontSize = 12.sp
                     )
                 }
             }

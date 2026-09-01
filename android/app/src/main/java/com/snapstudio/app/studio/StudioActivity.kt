@@ -900,6 +900,34 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                         drawLine(gridColor, Offset(0f, size.height * 0.333f), Offset(size.width, size.height * 0.333f), strokeWidth = 1.5f)
                                         drawLine(gridColor, Offset(0f, size.height * 0.666f), Offset(size.width, size.height * 0.666f), strokeWidth = 1.5f)
                                     }
+
+                                    // Live Healing & Object Removal Crimson Highlight
+                                    if (activeTab == "healing" || activeTab == "object_remove") {
+                                        val v = healingMaskVersion
+                                        if (v >= 0) {
+                                            val maskBmp = healingMaskEngine.maskBitmap
+                                            drawImage(
+                                                image = maskBmp.asImageBitmap(),
+                                                dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()),
+                                                colorFilter = ColorFilter.tint(Color(0xFFFF2D55), BlendMode.SrcIn),
+                                                alpha = 0.6f
+                                            )
+                                        }
+                                    }
+
+                                    // Live Selective Brush Crimson Highlight
+                                    if (activeTab == "brush" || activeTab == "selective") {
+                                        val v = maskVersion
+                                        if (v >= 0 && selectiveShowRubylith) {
+                                            val maskBmp = selectiveMaskEngine.maskBitmap
+                                            drawImage(
+                                                image = maskBmp.asImageBitmap(),
+                                                dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()),
+                                                colorFilter = ColorFilter.tint(Color(0xFFFF2D55), BlendMode.SrcIn),
+                                                alpha = 0.6f
+                                            )
+                                        }
+                                    }
                                 }
                             },
                         colorFilter = ColorFilter.colorMatrix(activeColorMatrix)
