@@ -78,21 +78,21 @@ fun SelectiveBrushPanel(
 
             AssistChip(
                 onClick = onAiSelectSubject,
-                label = { Text("👤 Subject", fontSize = 11.sp, color = Color.White) },
+                label = { Text("Subject", fontSize = 11.sp, color = Color.White) },
                 colors = AssistChipDefaults.assistChipColors(containerColor = Ink800),
                 border = AssistChipDefaults.assistChipBorder(borderColor = Ink700)
             )
 
             AssistChip(
                 onClick = onAiSelectBackground,
-                label = { Text("🌄 Background", fontSize = 11.sp, color = Color.White) },
+                label = { Text("Background", fontSize = 11.sp, color = Color.White) },
                 colors = AssistChipDefaults.assistChipColors(containerColor = Ink800),
                 border = AssistChipDefaults.assistChipBorder(borderColor = Ink700)
             )
 
             AssistChip(
                 onClick = onAiSelectSky,
-                label = { Text("☁️ Sky", fontSize = 11.sp, color = Color.White) },
+                label = { Text("Sky", fontSize = 11.sp, color = Color.White) },
                 colors = AssistChipDefaults.assistChipColors(containerColor = Ink800),
                 border = AssistChipDefaults.assistChipBorder(borderColor = Ink700)
             )

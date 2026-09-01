@@ -64,7 +64,7 @@ fun BackgroundRemoverPanel(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("🌄 1-Tap Remove Background", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text("1-Tap Remove Background", fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
         }
 

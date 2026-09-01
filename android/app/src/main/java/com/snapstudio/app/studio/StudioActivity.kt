@@ -685,7 +685,7 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                 highlights = res.highlights
                                 shadows = res.shadows
                                 warmth = res.warmth
-                                Toast.makeText(context, "✨ AI Auto-Enhanced!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "AI Auto-Enhanced!", Toast.LENGTH_SHORT).show()
                             }
                         },
                     contentAlignment = Alignment.Center
@@ -1560,7 +1560,7 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                         selectiveMaskEngine.restoreMask(subjectMask)
                                         maskVersion++
                                         selectiveShowRubylith = true
-                                        Toast.makeText(context, "👤 Subject Isolated for Grading", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Subject Isolated for Grading", Toast.LENGTH_SHORT).show()
                                     }
                                 },
                                 onAiSelectBackground = {
@@ -1570,7 +1570,7 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                         selectiveMaskEngine.restoreMask(bgMask)
                                         maskVersion++
                                         selectiveShowRubylith = true
-                                        Toast.makeText(context, "🌄 Background Isolated for Grading", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Background Isolated for Grading", Toast.LENGTH_SHORT).show()
                                     }
                                 },
                                 onAiSelectSky = {
@@ -1580,7 +1580,7 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                         selectiveMaskEngine.restoreMask(skyMask)
                                         maskVersion++
                                         selectiveShowRubylith = true
-                                        Toast.makeText(context, "☁️ Sky Isolated for Grading", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Sky Isolated for Grading", Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             )
@@ -1609,7 +1609,7 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                 Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                                     Text(activeTab.uppercase(), color = Amber, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                                     Spacer(modifier = Modifier.height(12.dp))
-                                    Text("Preview Active • Tap ✓ to Apply or ❌ to Cancel", color = FgMuted, fontSize = 13.sp)
+                                    Text("Preview Active • Tap Apply to Confirm or Cancel", color = FgMuted, fontSize = 13.sp)
                                 }
                             }
                             "object_remove" -> {
@@ -1629,7 +1629,7 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                                     bitmap = cutout
                                                     commitHistory(overlays, cutout)
                                                     isHealingInProgress = false
-                                                    Toast.makeText(context, "✨ Background Removed!", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, "Background Removed!", Toast.LENGTH_SHORT).show()
                                                 } catch (e: Exception) {
                                                     e.printStackTrace()
                                                     isHealingInProgress = false
@@ -1654,7 +1654,7 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                                     healingMaskVersion++
                                                     isHealingInProgress = false
                                                     commitHistory(overlays, erased)
-                                                    Toast.makeText(context, "✨ Brushed Area Erased!", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, "Brushed Area Erased!", Toast.LENGTH_SHORT).show()
                                                 } catch (e: Exception) {
                                                     e.printStackTrace()
                                                     isHealingInProgress = false
@@ -1699,7 +1699,7 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                                     bitmap = enhanced
                                                     commitHistory(overlays, enhanced)
                                                     isFaceProcessing = false
-                                                    Toast.makeText(context, "✨ 468-Point AI Portrait Applied!", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, "468-Point AI Portrait Applied!", Toast.LENGTH_SHORT).show()
                                                 } catch (e: Exception) {
                                                     e.printStackTrace()
                                                     isFaceProcessing = false
@@ -1902,7 +1902,7 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                         isGenerativeProcessing = false
                                         showGenerativeReplaceDialog = false
                                         generativePrompt = ""
-                                        Toast.makeText(context, "✨ Generative Replacement Applied!", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Generative Replacement Applied!", Toast.LENGTH_SHORT).show()
                                     } catch (e: Exception) {
                                         e.printStackTrace()
                                         isGenerativeProcessing = false
