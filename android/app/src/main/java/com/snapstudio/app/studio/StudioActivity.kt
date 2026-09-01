@@ -64,7 +64,6 @@ import com.snapstudio.app.studio.LensBlurEngine
 import com.snapstudio.app.ui.components.BackgroundRemoverPanel
 import com.snapstudio.app.ui.components.ChromeButton
 import com.snapstudio.app.ui.components.FaceRestorePanel
-import com.snapstudio.app.ui.components.HealingPanel
 import com.snapstudio.app.ui.components.LensBlurPanel
 import com.snapstudio.app.ui.components.SelectiveBrushPanel
 import com.snapstudio.app.ui.components.SelectiveMode
@@ -446,7 +445,7 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
             selectiveShowRubylith = false
             maskVersion++
         }
-        if (activeTab == "healing" || activeTab == "object_remove") {
+        if (activeTab == "object_remove") {
             healingMaskEngine.clear()
             healingMaskVersion++
         }
@@ -959,7 +958,7 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                         maskVersion++
                                     }
                                 )
-                            } else if (activeTab == "healing" || activeTab == "object_remove") {
+                            } else if (activeTab == "object_remove") {
                                 detectDragGestures(
                                     onDragStart = { offset ->
                                         val b = bitmap ?: return@detectDragGestures
@@ -1099,8 +1098,8 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                         drawLine(gridColor, Offset(0f, size.height * 0.666f), Offset(size.width, size.height * 0.666f), strokeWidth = 1.5f)
                                     }
 
-                                    // Live Healing & Object Removal Crimson Highlight
-                                    if (activeTab == "healing" || activeTab == "object_remove") {
+                                    // Live Background Remover Crimson Highlight
+                                    if (activeTab == "object_remove") {
                                         val v = healingMaskVersion
                                         if (v >= 0) {
                                             val maskBmp = healingMaskEngine.maskBitmap
@@ -1613,7 +1612,7 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                     Text("Preview Active • Tap ✓ to Apply or ❌ to Cancel", color = FgMuted, fontSize = 13.sp)
                                 }
                             }
-                            "object_remove", "healing" -> {
+                            "object_remove" -> {
                                 BackgroundRemoverPanel(
                                     brushSize = healingBrushSize,
                                     onBrushSizeChanged = { healingBrushSize = it },

@@ -55,7 +55,6 @@ val ALL_STUDIO_TOOLS = listOf(
 
     // FIX / EDIT
     StudioTool("crop", "Crop", Icons.Outlined.CropRotate, StudioCategory.FIX),
-    StudioTool("healing", "Healing", Icons.Outlined.Healing, StudioCategory.FIX),
     StudioTool("brush", "Brush", Icons.Outlined.Brush, StudioCategory.FIX),
     StudioTool("selective", "Selective", Icons.Outlined.Adjust, StudioCategory.FIX),
     StudioTool("lens_blur", "Lens Blur", Icons.Outlined.BlurCircular, StudioCategory.FIX),
