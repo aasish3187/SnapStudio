@@ -43,8 +43,10 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import android.widget.Toast
 import com.snapstudio.app.ui.theme.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 data class GalleryMediaItem(
@@ -69,6 +71,7 @@ class GalleryActivity : ComponentActivity() {
 @Composable
 fun GalleryScreen(onBack: () -> Unit) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var mediaList by remember { mutableStateOf<List<GalleryMediaItem>>(emptyList()) }
     var selectedMediaItem by remember { mutableStateOf<GalleryMediaItem?>(null) }
 
@@ -149,6 +152,23 @@ fun GalleryScreen(onBack: () -> Unit) {
                         context.startActivity(Intent.createChooser(shareIntent, "Share via"))
                     } catch (e: Exception) {
                         e.printStackTrace()
+                    }
+                },
+                onDelete = {
+                    val toDelete = selectedMediaItem
+                    if (toDelete != null) {
+                        coroutineScope.launch {
+                            withContext(Dispatchers.IO) {
+                                try {
+                                    context.contentResolver.delete(toDelete.uri, null, null)
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
+                            }
+                            mediaList = mediaList.filter { it.uri != toDelete.uri }
+                            selectedMediaItem = null
+                            Toast.makeText(context, if (toDelete.isVideo) "Video Deleted" else "Photo Deleted", Toast.LENGTH_SHORT).show()
+                        }
                     }
                 }
             )
@@ -266,10 +286,12 @@ fun MediaDetailViewer(
     item: GalleryMediaItem,
     onBack: () -> Unit,
     onEdit: () -> Unit,
-    onShare: () -> Unit
+    onShare: () -> Unit,
+    onDelete: () -> Unit
 ) {
     val context = LocalContext.current
     var bitmap by remember(item.uri) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
     val exoPlayer = remember(item.uri) {
         if (item.isVideo) {
@@ -382,16 +404,32 @@ fun MediaDetailViewer(
                     modifier = Modifier.size(22.dp)
                 )
             }
+
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .clickable { showDeleteConfirmDialog = true },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Outlined.DeleteOutline,
+                    contentDescription = "Delete",
+                    tint = Color(0xFFFF453A),
+                    modifier = Modifier.size(22.dp)
+                )
+            }
         }
 
-        // Bottom Action Bar with "Edit" and "Share"
+        // Bottom Action Bar with "Share", "Delete", and "Edit"
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .align(Alignment.BottomCenter)
-                .padding(horizontal = 24.dp, vertical = 24.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+                .padding(horizontal = 16.dp, vertical = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Share Button
@@ -401,9 +439,9 @@ fun MediaDetailViewer(
                     containerColor = Ink800.copy(alpha = 0.85f),
                     contentColor = Color.White
                 ),
-                shape = RoundedCornerShape(24.dp),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
+                shape = RoundedCornerShape(20.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                modifier = Modifier.weight(1f)
             ) {
                 Icon(
                     Icons.Outlined.Share,
@@ -411,11 +449,37 @@ fun MediaDetailViewer(
                     tint = Color.White,
                     modifier = Modifier.size(18.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "Share",
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            // Delete Button
+            Button(
+                onClick = { showDeleteConfirmDialog = true },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFFF453A).copy(alpha = 0.2f),
+                    contentColor = Color(0xFFFF453A)
+                ),
+                shape = RoundedCornerShape(20.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    Icons.Outlined.DeleteOutline,
+                    contentDescription = "Delete",
+                    tint = Color(0xFFFF453A),
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Delete",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFFFF453A)
                 )
             }
 
@@ -426,24 +490,70 @@ fun MediaDetailViewer(
                     containerColor = Amber,
                     contentColor = Ink900
                 ),
-                shape = RoundedCornerShape(24.dp),
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
+                shape = RoundedCornerShape(20.dp),
+                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+                modifier = Modifier.weight(1.3f)
             ) {
                 Icon(
                     Icons.Outlined.AutoFixHigh,
                     contentDescription = "Edit",
                     tint = Ink900,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = if (item.isVideo) "Edit Video" else "Edit Photo",
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = Ink900
                 )
             }
+        }
+
+        // Delete Confirmation Dialog
+        if (showDeleteConfirmDialog) {
+            AlertDialog(
+                onDismissRequest = { showDeleteConfirmDialog = false },
+                containerColor = Ink800,
+                title = {
+                    Text(
+                        text = if (item.isVideo) "Delete Video?" else "Delete Photo?",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
+                },
+                text = {
+                    Text(
+                        text = "This will permanently remove this ${if (item.isVideo) "video" else "photo"} from your gallery.",
+                        color = FgMuted,
+                        fontSize = 14.sp
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showDeleteConfirmDialog = false
+                            onDelete()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFFF453A),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Delete", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showDeleteConfirmDialog = false }
+                    ) {
+                        Text("Cancel", color = FgMuted)
+                    }
+                },
+                shape = RoundedCornerShape(20.dp)
+            )
         }
     }
 }
