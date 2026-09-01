@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.snapstudio.app.ui.components.ChromeButton
+import com.snapstudio.app.ui.components.HealingPanel
 import com.snapstudio.app.ui.components.SelectiveBrushPanel
 import com.snapstudio.app.ui.components.SelectiveMode
 import com.snapstudio.app.ui.theme.*
@@ -220,6 +221,13 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
     var selectiveMode by remember { mutableStateOf(SelectiveMode.EXPOSURE) }
     var maskVersion by remember { mutableStateOf(0) }
 
+    // Smart Inpainting & Object Healing Engine
+    val healingMaskEngine = remember { SelectiveMaskEngine() }
+    var healingBrushSize by remember { mutableStateOf(35f) }
+    var healingIsErase by remember { mutableStateOf(false) }
+    var isHealingInProgress by remember { mutableStateOf(false) }
+    var healingMaskVersion by remember { mutableStateOf(0) }
+
     var canvasScale by remember { mutableStateOf(1f) }
     var canvasOffset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
     
@@ -230,10 +238,11 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
     LaunchedEffect(bitmap) {
         bitmap?.let { b ->
             selectiveMaskEngine.resizeIfNeeded(b.width, b.height)
+            healingMaskEngine.resizeIfNeeded(b.width, b.height)
         }
     }
 
-    val liveDisplayBitmap = remember(bitmap, maskVersion, selectiveExposureEV, selectiveTemperature, selectiveSaturation, selectiveContrast, selectiveShowRubylith, activeTab) {
+    val liveDisplayBitmap = remember(bitmap, maskVersion, healingMaskVersion, selectiveExposureEV, selectiveTemperature, selectiveSaturation, selectiveContrast, selectiveShowRubylith, activeTab) {
         if ((activeTab == "brush" || activeTab == "selective") && bitmap != null) {
             SelectiveAdjustmentCompositor.composite(
                 baseBitmap = bitmap!!,
@@ -243,6 +252,16 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                 saturation = selectiveSaturation,
                 contrast = selectiveContrast,
                 showMaskRubylith = selectiveShowRubylith
+            )
+        } else if ((activeTab == "healing" || activeTab == "object_remove") && bitmap != null) {
+            SelectiveAdjustmentCompositor.composite(
+                baseBitmap = bitmap!!,
+                maskBitmap = healingMaskEngine.maskBitmap,
+                exposureEV = 0f,
+                temperature = 0f,
+                saturation = 1f,
+                contrast = 1f,
+                showMaskRubylith = true
             )
         } else {
             bitmap
@@ -386,6 +405,10 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
             selectiveContrast = 1f
             selectiveShowRubylith = false
             maskVersion++
+        }
+        if (activeTab == "healing" || activeTab == "object_remove") {
+            healingMaskEngine.clear()
+            healingMaskVersion++
         }
         toolSnapshot = null
         activeTab = ""
@@ -657,7 +680,7 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                             translationX = canvasOffset.x,
                             translationY = canvasOffset.y
                         )
-                        .pointerInput(activeTab, selectiveBrushSize, selectiveBrushHardness, selectiveIsErase) {
+                        .pointerInput(activeTab, selectiveBrushSize, selectiveBrushHardness, selectiveIsErase, healingBrushSize, healingIsErase) {
                             if (activeTab == "brush" || activeTab == "selective") {
                                 detectDragGestures(
                                     onDragStart = { offset ->
@@ -691,6 +714,41 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                     onDragEnd = {
                                         selectiveMaskEngine.endStroke()
                                         maskVersion++
+                                    }
+                                )
+                            } else if (activeTab == "healing" || activeTab == "object_remove") {
+                                detectDragGestures(
+                                    onDragStart = { offset ->
+                                        val b = bitmap ?: return@detectDragGestures
+                                        val scaleX = b.width.toFloat() / size.width
+                                        val scaleY = b.height.toFloat() / size.height
+                                        val mappedOffset = Offset(offset.x * scaleX, offset.y * scaleY)
+                                        healingMaskEngine.startStroke(
+                                            point = mappedOffset,
+                                            radius = healingBrushSize * scaleX,
+                                            hardness = 0.85f,
+                                            opacity = 1f,
+                                            isErase = healingIsErase
+                                        )
+                                        healingMaskVersion++
+                                    },
+                                    onDrag = { change, _ ->
+                                        val b = bitmap ?: return@detectDragGestures
+                                        val scaleX = b.width.toFloat() / size.width
+                                        val scaleY = b.height.toFloat() / size.height
+                                        val mappedOffset = Offset(change.position.x * scaleX, change.position.y * scaleY)
+                                        healingMaskEngine.continueStroke(
+                                            currentPoint = mappedOffset,
+                                            radius = healingBrushSize * scaleX,
+                                            hardness = 0.85f,
+                                            opacity = 1f,
+                                            isErase = healingIsErase
+                                        )
+                                        healingMaskVersion++
+                                    },
+                                    onDragEnd = {
+                                        healingMaskEngine.endStroke()
+                                        healingMaskVersion++
                                     }
                                 )
                             } else {
@@ -951,13 +1009,43 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                 }
                             }
                             "object_remove", "healing" -> {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.fillMaxSize().padding(16.dp)) {
-                                    Text("AI Object Erase / Healing", color = Amber, fontWeight = FontWeight.Bold)
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    Button(onClick = { Toast.makeText(context, "Healing Brush Active", Toast.LENGTH_SHORT).show() }, colors = ButtonDefaults.buttonColors(containerColor = Amber, contentColor = Ink900)) {
-                                        Text("Activate Healing")
+                                com.snapstudio.app.ui.components.HealingPanel(
+                                    toolName = activeTab,
+                                    brushSize = healingBrushSize,
+                                    onBrushSizeChanged = { healingBrushSize = it },
+                                    isEraseMode = healingIsErase,
+                                    onToggleErase = { healingIsErase = it },
+                                    isHealingInProgress = isHealingInProgress,
+                                    onApplyHeal = {
+                                        val cur = bitmap
+                                        if (cur != null && !isHealingInProgress) {
+                                            isHealingInProgress = true
+                                            coroutineScope.launch {
+                                                try {
+                                                    val healed = FastInpaintingEngine.inpaint(
+                                                        source = cur,
+                                                        mask = healingMaskEngine.maskBitmap,
+                                                        radius = (healingBrushSize * 0.15f).toInt().coerceIn(3, 10)
+                                                    )
+                                                    bitmap = healed
+                                                    healingMaskEngine.clear()
+                                                    healingMaskVersion++
+                                                    isHealingInProgress = false
+                                                    commitHistory(overlays, healed)
+                                                    Toast.makeText(context, "Area Healed Successfully!", Toast.LENGTH_SHORT).show()
+                                                } catch (e: Exception) {
+                                                    e.printStackTrace()
+                                                    isHealingInProgress = false
+                                                    Toast.makeText(context, "Healing failed", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        }
+                                    },
+                                    onClearSelection = {
+                                        healingMaskEngine.clear()
+                                        healingMaskVersion++
                                     }
-                                }
+                                )
                             }
                             "face_restore" -> {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.fillMaxSize().padding(16.dp)) {
