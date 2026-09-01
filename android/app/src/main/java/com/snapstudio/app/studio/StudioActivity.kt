@@ -47,6 +47,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.ui.layout.ContentScale
@@ -56,6 +57,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.snapstudio.app.ui.components.ChromeButton
+import com.snapstudio.app.ui.components.SelectiveBrushPanel
+import com.snapstudio.app.ui.components.SelectiveMode
 import com.snapstudio.app.ui.theme.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -204,12 +207,47 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
     var activeTab by remember { mutableStateOf("") }
     var activeCategory by remember { mutableStateOf(StudioCategory.ALL) }
     
+    // Selective Masking & Parametric Brush Engine
+    val selectiveMaskEngine = remember { SelectiveMaskEngine() }
+    var selectiveExposureEV by remember { mutableStateOf(0f) }
+    var selectiveTemperature by remember { mutableStateOf(0f) }
+    var selectiveSaturation by remember { mutableStateOf(1f) }
+    var selectiveContrast by remember { mutableStateOf(1f) }
+    var selectiveBrushSize by remember { mutableStateOf(45f) }
+    var selectiveBrushHardness by remember { mutableStateOf(0.25f) }
+    var selectiveIsErase by remember { mutableStateOf(false) }
+    var selectiveShowRubylith by remember { mutableStateOf(false) }
+    var selectiveMode by remember { mutableStateOf(SelectiveMode.EXPOSURE) }
+    var maskVersion by remember { mutableStateOf(0) }
+
     var canvasScale by remember { mutableStateOf(1f) }
     var canvasOffset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
     
     var selectedOverlayId by remember { mutableStateOf<String?>(null) }
     var overlays by remember { mutableStateOf(listOf<OverlayItem>()) }
     var bitmap by remember { mutableStateOf<Bitmap?>(null) }
+
+    LaunchedEffect(bitmap) {
+        bitmap?.let { b ->
+            selectiveMaskEngine.resizeIfNeeded(b.width, b.height)
+        }
+    }
+
+    val liveDisplayBitmap = remember(bitmap, maskVersion, selectiveExposureEV, selectiveTemperature, selectiveSaturation, selectiveContrast, selectiveShowRubylith, activeTab) {
+        if ((activeTab == "brush" || activeTab == "selective") && bitmap != null) {
+            SelectiveAdjustmentCompositor.composite(
+                baseBitmap = bitmap!!,
+                maskBitmap = selectiveMaskEngine.maskBitmap,
+                exposureEV = selectiveExposureEV,
+                temperature = selectiveTemperature,
+                saturation = selectiveSaturation,
+                contrast = selectiveContrast,
+                showMaskRubylith = selectiveShowRubylith
+            )
+        } else {
+            bitmap
+        }
+    }
     
     // Complete Undo / Redo History
     var history by remember { mutableStateOf(listOf(StudioHistoryItem())) }
@@ -340,12 +378,42 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
             overlays = s.overlays
             bitmap = s.bitmap
         }
+        if (activeTab == "brush" || activeTab == "selective") {
+            selectiveMaskEngine.clear()
+            selectiveExposureEV = 0f
+            selectiveTemperature = 0f
+            selectiveSaturation = 1f
+            selectiveContrast = 1f
+            selectiveShowRubylith = false
+            maskVersion++
+        }
         toolSnapshot = null
         activeTab = ""
     }
 
     fun applyTool() {
-        commitHistory(overlays, bitmap)
+        if ((activeTab == "brush" || activeTab == "selective") && bitmap != null) {
+            val composited = SelectiveAdjustmentCompositor.composite(
+                baseBitmap = bitmap!!,
+                maskBitmap = selectiveMaskEngine.maskBitmap,
+                exposureEV = selectiveExposureEV,
+                temperature = selectiveTemperature,
+                saturation = selectiveSaturation,
+                contrast = selectiveContrast,
+                showMaskRubylith = false
+            )
+            bitmap = composited
+            selectiveMaskEngine.clear()
+            selectiveExposureEV = 0f
+            selectiveTemperature = 0f
+            selectiveSaturation = 1f
+            selectiveContrast = 1f
+            selectiveShowRubylith = false
+            maskVersion++
+            commitHistory(overlays, composited)
+        } else {
+            commitHistory(overlays, bitmap)
+        }
         toolSnapshot = null
         activeTab = ""
     }
@@ -589,19 +657,57 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                             translationX = canvasOffset.x,
                             translationY = canvasOffset.y
                         )
-                        .pointerInput(Unit) {
-                            detectTransformGestures { _, pan, zoom, _ ->
-                                canvasScale = (canvasScale * zoom).coerceIn(1f, 5f)
-                                if (canvasScale > 1f) {
-                                    canvasOffset += pan
-                                } else {
-                                    canvasOffset = androidx.compose.ui.geometry.Offset.Zero
+                        .pointerInput(activeTab, selectiveBrushSize, selectiveBrushHardness, selectiveIsErase) {
+                            if (activeTab == "brush" || activeTab == "selective") {
+                                detectDragGestures(
+                                    onDragStart = { offset ->
+                                        val b = bitmap ?: return@detectDragGestures
+                                        val scaleX = b.width.toFloat() / size.width
+                                        val scaleY = b.height.toFloat() / size.height
+                                        val mappedOffset = Offset(offset.x * scaleX, offset.y * scaleY)
+                                        selectiveMaskEngine.startStroke(
+                                            point = mappedOffset,
+                                            radius = selectiveBrushSize * scaleX,
+                                            hardness = selectiveBrushHardness,
+                                            opacity = 1f,
+                                            isErase = selectiveIsErase
+                                        )
+                                        maskVersion++
+                                    },
+                                    onDrag = { change, _ ->
+                                        val b = bitmap ?: return@detectDragGestures
+                                        val scaleX = b.width.toFloat() / size.width
+                                        val scaleY = b.height.toFloat() / size.height
+                                        val mappedOffset = Offset(change.position.x * scaleX, change.position.y * scaleY)
+                                        selectiveMaskEngine.continueStroke(
+                                            currentPoint = mappedOffset,
+                                            radius = selectiveBrushSize * scaleX,
+                                            hardness = selectiveBrushHardness,
+                                            opacity = 1f,
+                                            isErase = selectiveIsErase
+                                        )
+                                        maskVersion++
+                                    },
+                                    onDragEnd = {
+                                        selectiveMaskEngine.endStroke()
+                                        maskVersion++
+                                    }
+                                )
+                            } else {
+                                detectTransformGestures { _, pan, zoom, _ ->
+                                    canvasScale = (canvasScale * zoom).coerceIn(1f, 5f)
+                                    if (canvasScale > 1f) {
+                                        canvasOffset += pan
+                                    } else {
+                                        canvasOffset = androidx.compose.ui.geometry.Offset.Zero
+                                    }
                                 }
                             }
                         }
                 ) {
+                    val displayBmp = liveDisplayBitmap ?: bitmap!!
                     Image(
-                        bitmap = bitmap!!.asImageBitmap(),
+                        bitmap = displayBmp.asImageBitmap(),
                         contentDescription = "Edit Canvas",
                         contentScale = ContentScale.Fit,
                         modifier = Modifier
@@ -786,6 +892,28 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                 Column {
                     Box(modifier = Modifier.fillMaxWidth().height(190.dp), contentAlignment = Alignment.Center) {
                         when (activeTab) {
+                            "brush", "selective" -> com.snapstudio.app.ui.components.SelectiveBrushPanel(
+                                activeMode = selectiveMode,
+                                onModeChanged = { selectiveMode = it },
+                                exposureEV = selectiveExposureEV,
+                                onExposureChanged = { selectiveExposureEV = it },
+                                temperature = selectiveTemperature,
+                                onTemperatureChanged = { selectiveTemperature = it },
+                                saturation = selectiveSaturation,
+                                onSaturationChanged = { selectiveSaturation = it },
+                                contrast = selectiveContrast,
+                                onContrastChanged = { selectiveContrast = it },
+                                brushSize = selectiveBrushSize,
+                                onBrushSizeChanged = { selectiveBrushSize = it },
+                                brushHardness = selectiveBrushHardness,
+                                onBrushHardnessChanged = { selectiveBrushHardness = it },
+                                isEraseMode = selectiveIsErase,
+                                onToggleErase = { selectiveIsErase = it },
+                                showMaskRubylith = selectiveShowRubylith,
+                                onToggleMaskRubylith = { selectiveShowRubylith = it },
+                                onInvertMask = { selectiveMaskEngine.invert(); maskVersion++ },
+                                onClearMask = { selectiveMaskEngine.clear(); maskVersion++ }
+                            )
                             "tune_image", "adjust", "colour" -> com.snapstudio.app.ui.components.TuneImagePanel(brightness, contrast, saturation, ambiance, highlights, shadows, warmth, {brightness=it}, {contrast=it}, {saturation=it}, {ambiance=it}, {highlights=it}, {shadows=it}, {warmth=it})
                             "details" -> com.snapstudio.app.ui.components.DetailsPanel(structure, sharpening, {structure=it}, {sharpening=it})
                             "tonal_contrast" -> com.snapstudio.app.ui.components.TonalContrastPanel(highTones, midTones, lowTones, protectShadows, protectHighlights, {highTones=it}, {midTones=it}, {lowTones=it}, {protectShadows=it}, {protectHighlights=it})
