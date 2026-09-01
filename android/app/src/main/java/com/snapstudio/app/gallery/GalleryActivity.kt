@@ -47,15 +47,71 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import android.widget.Toast
 import com.snapstudio.app.ui.theme.*
+import androidx.compose.runtime.Immutable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+@Immutable
 data class GalleryMediaItem(
     val uri: Uri,
     val isVideo: Boolean,
     val dateAdded: Long
 )
+
+object GalleryThumbnailLoader {
+    private val maxMemory = (Runtime.getRuntime().maxMemory() / 1024).toInt()
+    private val cacheSize = maxMemory / 8
+    val cache = object : android.util.LruCache<Uri, android.graphics.Bitmap>(cacheSize) {
+        override fun sizeOf(key: Uri, value: android.graphics.Bitmap): Int {
+            return value.byteCount / 1024
+        }
+    }
+
+    suspend fun loadThumbnail(context: android.content.Context, uri: Uri, isVideo: Boolean): android.graphics.Bitmap? = withContext(Dispatchers.IO) {
+        cache.get(uri)?.let { return@withContext it }
+
+        var bmp: android.graphics.Bitmap? = null
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                bmp = context.contentResolver.loadThumbnail(uri, Size(240, 320), null)
+            } else {
+                val options = android.graphics.BitmapFactory.Options().apply {
+                    inJustDecodeBounds = true
+                }
+                context.contentResolver.openInputStream(uri)?.use {
+                    android.graphics.BitmapFactory.decodeStream(it, null, options)
+                }
+
+                val reqW = 240
+                val reqH = 320
+                var inSampleSize = 1
+                if (options.outHeight > reqH || options.outWidth > reqW) {
+                    val halfHeight = options.outHeight / 2
+                    val halfWidth = options.outWidth / 2
+                    while (halfHeight / inSampleSize >= reqH && halfWidth / inSampleSize >= reqW) {
+                        inSampleSize *= 2
+                    }
+                }
+
+                val decodeOptions = android.graphics.BitmapFactory.Options().apply {
+                    this.inSampleSize = inSampleSize
+                    inPreferredConfig = android.graphics.Bitmap.Config.RGB_565
+                }
+                context.contentResolver.openInputStream(uri)?.use {
+                    bmp = android.graphics.BitmapFactory.decodeStream(it, null, decodeOptions)
+                }
+            }
+        } catch (e: Throwable) {
+            e.printStackTrace()
+        }
+
+        if (bmp != null) {
+            cache.put(uri, bmp)
+        }
+        bmp
+    }
+}
 
 class GalleryActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -287,7 +343,7 @@ fun GalleryScreen(onBack: () -> Unit) {
                     }
                 }
 
-                // Grid
+                // High-Performance Zero-Lag Thumbnail Grid
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     modifier = Modifier
@@ -296,101 +352,31 @@ fun GalleryScreen(onBack: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    items(mediaList) { item ->
-                        var bitmap by remember(item.uri) { mutableStateOf<android.graphics.Bitmap?>(null) }
-                        val isSelected = selectedUris.contains(item.uri)
-
-                        LaunchedEffect(item.uri) {
-                            withContext(Dispatchers.IO) {
-                                try {
-                                    if (item.isVideo && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                                        bitmap = context.contentResolver.loadThumbnail(item.uri, Size(300, 400), null)
-                                    } else {
-                                        val stream = context.contentResolver.openInputStream(item.uri)
-                                        bitmap = android.graphics.BitmapFactory.decodeStream(stream)
-                                        stream?.close()
+                    items(
+                        items = mediaList,
+                        key = { it.uri.toString() }
+                    ) { item ->
+                        GalleryThumbnailItem(
+                            item = item,
+                            isSelected = selectedUris.contains(item.uri),
+                            isMultiSelectMode = isMultiSelectMode,
+                            onLongPress = {
+                                if (!isMultiSelectMode) {
+                                    isMultiSelectMode = true
+                                    selectedUris = setOf(item.uri)
+                                }
+                            },
+                            onTap = {
+                                if (isMultiSelectMode) {
+                                    selectedUris = if (selectedUris.contains(item.uri)) selectedUris - item.uri else selectedUris + item.uri
+                                    if (selectedUris.isEmpty()) {
+                                        isMultiSelectMode = false
                                     }
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
+                                } else {
+                                    selectedMediaItem = item
                                 }
                             }
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .aspectRatio(3f / 4f)
-                                .background(Ink800)
-                                .pointerInput(isMultiSelectMode, item.uri) {
-                                    detectTapGestures(
-                                        onLongPress = {
-                                            if (!isMultiSelectMode) {
-                                                isMultiSelectMode = true
-                                                selectedUris = setOf(item.uri)
-                                            }
-                                        },
-                                        onTap = {
-                                            if (isMultiSelectMode) {
-                                                selectedUris = if (isSelected) selectedUris - item.uri else selectedUris + item.uri
-                                                if (selectedUris.isEmpty()) {
-                                                    isMultiSelectMode = false
-                                                }
-                                            } else {
-                                                selectedMediaItem = item
-                                            }
-                                        }
-                                    )
-                                }
-                        ) {
-                            bitmap?.let { b ->
-                                Image(
-                                    bitmap = b.asImageBitmap(),
-                                    contentDescription = if (item.isVideo) "Video" else "Photo",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
-
-                            if (item.isVideo) {
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.BottomStart)
-                                        .padding(6.dp)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color.Black.copy(alpha = 0.6f))
-                                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Outlined.PlayArrow,
-                                        contentDescription = "Video",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
-                            }
-
-                            // Multi-Select Checkmark Badge
-                            if (isMultiSelectMode) {
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(6.dp)
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(if (isSelected) Amber else Color.Black.copy(alpha = 0.5f))
-                                        .border(1.5.dp, if (isSelected) Amber else Color.White, CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (isSelected) {
-                                        Icon(
-                                            Icons.Outlined.Check,
-                                            contentDescription = "Selected",
-                                            tint = Ink900,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                        )
                     }
                 }
             }
@@ -730,6 +716,86 @@ fun MediaDetailViewer(
                 },
                 shape = RoundedCornerShape(20.dp)
             )
+        }
+    }
+}
+
+@Composable
+fun GalleryThumbnailItem(
+    item: GalleryMediaItem,
+    isSelected: Boolean,
+    isMultiSelectMode: Boolean,
+    onLongPress: () -> Unit,
+    onTap: () -> Unit
+) {
+    val context = LocalContext.current
+    var bitmap by remember(item.uri) { mutableStateOf(GalleryThumbnailLoader.cache.get(item.uri)) }
+
+    LaunchedEffect(item.uri) {
+        if (bitmap == null) {
+            bitmap = GalleryThumbnailLoader.loadThumbnail(context, item.uri, item.isVideo)
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .aspectRatio(3f / 4f)
+            .background(Ink800)
+            .pointerInput(isMultiSelectMode, item.uri) {
+                detectTapGestures(
+                    onLongPress = { onLongPress() },
+                    onTap = { onTap() }
+                )
+            }
+    ) {
+        bitmap?.let { b ->
+            Image(
+                bitmap = b.asImageBitmap(),
+                contentDescription = if (item.isVideo) "Video" else "Photo",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        if (item.isVideo) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(6.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(Color.Black.copy(alpha = 0.6f))
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
+            ) {
+                Icon(
+                    Icons.Outlined.PlayArrow,
+                    contentDescription = "Video",
+                    tint = Color.White,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+        }
+
+        // Multi-Select Checkmark Badge
+        if (isMultiSelectMode) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(6.dp)
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(if (isSelected) Amber else Color.Black.copy(alpha = 0.5f))
+                    .border(1.5.dp, if (isSelected) Amber else Color.White, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isSelected) {
+                    Icon(
+                        Icons.Outlined.Check,
+                        contentDescription = "Selected",
+                        tint = Ink900,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
         }
     }
 }

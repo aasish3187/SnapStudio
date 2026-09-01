@@ -1240,9 +1240,12 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                     activeCategory = activeCategory,
                     onCategorySelected = { activeCategory = it }
                 )
+                val visibleTools = remember(isVideo, activeCategory) {
+                    if (isVideo) VIDEO_STUDIO_TOOLS.filter { activeCategory == StudioCategory.ALL || it.category == activeCategory }
+                    else ALL_STUDIO_TOOLS.filter { activeCategory == StudioCategory.ALL || it.category == activeCategory }
+                }
                 ToolGrid(
-                    tools = if (isVideo) VIDEO_STUDIO_TOOLS.filter { activeCategory == StudioCategory.ALL || it.category == activeCategory }
-                            else ALL_STUDIO_TOOLS.filter { activeCategory == StudioCategory.ALL || it.category == activeCategory },
+                    tools = visibleTools,
                     onToolSelected = { openTool(it) },
                     modifier = Modifier.weight(1f)
                 )
