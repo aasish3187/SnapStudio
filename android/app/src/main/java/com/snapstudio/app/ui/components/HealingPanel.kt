@@ -33,13 +33,14 @@ fun HealingPanel(
     onAiSelectSubject: () -> Unit = {},
     onAiSelectBackground: () -> Unit = {},
     onAiSelectSky: () -> Unit = {},
+    onAiDetectDistractions: () -> Unit = {},
     onGenerativeReplace: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // AI Smart Select Chips Row
@@ -47,10 +48,17 @@ fun HealingPanel(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("AI Smart Select:", color = Amber, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text("AI Eraser:", color = Amber, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+
+            AssistChip(
+                onClick = onAiDetectDistractions,
+                label = { Text("🔍 Distractions", fontSize = 11.sp, color = Amber) },
+                colors = AssistChipDefaults.assistChipColors(containerColor = Ink800),
+                border = AssistChipDefaults.assistChipBorder(borderColor = Amber.copy(alpha = 0.5f))
+            )
 
             AssistChip(
                 onClick = onAiSelectSubject,
@@ -88,7 +96,7 @@ fun HealingPanel(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Size", color = FgFaint, fontSize = 12.sp, modifier = Modifier.width(36.dp))
+            Text("Size", color = FgFaint, fontSize = 11.sp, modifier = Modifier.width(34.dp))
             Slider(
                 value = brushSize,
                 onValueChange = onBrushSizeChanged,
@@ -104,12 +112,12 @@ fun HealingPanel(
                 text = "${brushSize.toInt()}px",
                 color = Fg,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 12.sp,
-                modifier = Modifier.width(44.dp)
+                fontSize = 11.sp,
+                modifier = Modifier.width(42.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         // Bottom Controls Row: Select / Erase Segmented Control, Clear, and Action Button
         Row(
@@ -131,13 +139,13 @@ fun HealingPanel(
                         .clip(RoundedCornerShape(10.dp))
                         .background(if (!isEraseMode) Amber else Color.Transparent)
                         .clickable { onToggleErase(false) }
-                        .padding(horizontal = 10.dp, vertical = 7.dp),
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "Paint",
                         color = if (!isEraseMode) Ink900 else FgMuted,
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -148,13 +156,13 @@ fun HealingPanel(
                         .clip(RoundedCornerShape(10.dp))
                         .background(if (isEraseMode) Amber else Color.Transparent)
                         .clickable { onToggleErase(true) }
-                        .padding(horizontal = 10.dp, vertical = 7.dp),
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "Erase",
                         color = if (isEraseMode) Ink900 else FgMuted,
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -164,7 +172,7 @@ fun HealingPanel(
                     modifier = Modifier
                         .clip(CircleShape)
                         .clickable { onClearSelection() }
-                        .padding(horizontal = 8.dp, vertical = 7.dp),
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -176,7 +184,7 @@ fun HealingPanel(
                 }
             }
 
-            // Primary Heal / Erase Button
+            // Primary AI Magic Erase Button
             Button(
                 onClick = onApplyHeal,
                 enabled = !isHealingInProgress,
@@ -190,7 +198,7 @@ fun HealingPanel(
                 modifier = Modifier
                     .weight(1f)
                     .height(40.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp)
+                contentPadding = PaddingValues(horizontal = 10.dp)
             ) {
                 if (isHealingInProgress) {
                     CircularProgressIndicator(
@@ -199,7 +207,7 @@ fun HealingPanel(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Removing...", color = Ink900, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text("AI Erasing...", color = Ink900, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 } else {
                     Icon(
                         Icons.Outlined.AutoFixHigh,
@@ -209,7 +217,7 @@ fun HealingPanel(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (toolName == "healing") "Heal Area" else "Remove Object",
+                        text = "✨ AI Magic Erase",
                         color = Ink900,
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp

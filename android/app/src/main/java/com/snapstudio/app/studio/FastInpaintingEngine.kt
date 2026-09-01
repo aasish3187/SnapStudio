@@ -207,7 +207,7 @@ object FastInpaintingEngine {
     /**
      * Flood-fills exterior from borders. Any unreached pixel is inside a closed loop and filled.
      */
-    private fun fillEnclosedHoles(maskPixels: IntArray, width: Int, height: Int): BooleanArray {
+    fun fillEnclosedHoles(maskPixels: IntArray, width: Int, height: Int): BooleanArray {
         val isMask = BooleanArray(width * height)
         var maskCount = 0
 

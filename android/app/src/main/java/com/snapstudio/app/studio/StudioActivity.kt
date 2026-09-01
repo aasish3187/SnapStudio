@@ -1405,6 +1405,15 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                     isEraseMode = healingIsErase,
                                     onToggleErase = { healingIsErase = it },
                                     isHealingInProgress = isHealingInProgress,
+                                    onAiDetectDistractions = {
+                                        val cur = bitmap ?: return@HealingPanel
+                                        coroutineScope.launch {
+                                            val distractions = AiMagicEraserEngine.detectBackgroundDistractions(cur)
+                                            healingMaskEngine.restoreMask(distractions)
+                                            healingMaskVersion++
+                                            Toast.makeText(context, "🔍 AI Distractions & Photobombers Detected!", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
                                     onAiSelectSubject = {
                                         val cur = bitmap ?: return@HealingPanel
                                         coroutineScope.launch {
@@ -1441,17 +1450,17 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                             isHealingInProgress = true
                                             coroutineScope.launch {
                                                 try {
-                                                    val healed = FastInpaintingEngine.inpaint(
+                                                    val healed = AiMagicEraserEngine.aiErase(
                                                         source = cur,
                                                         mask = healingMaskEngine.maskBitmap,
-                                                        radius = (healingBrushSize * 0.15f).toInt().coerceIn(3, 10)
+                                                        refineMaskWithAi = true
                                                     )
                                                     bitmap = healed
                                                     healingMaskEngine.clear()
                                                     healingMaskVersion++
                                                     isHealingInProgress = false
                                                     commitHistory(overlays, healed)
-                                                    Toast.makeText(context, "Area Healed Successfully!", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, "✨ Object Erased with AI!", Toast.LENGTH_SHORT).show()
                                                 } catch (e: Exception) {
                                                     e.printStackTrace()
                                                     isHealingInProgress = false
