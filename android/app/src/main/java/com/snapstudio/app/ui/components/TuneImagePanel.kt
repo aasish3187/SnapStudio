@@ -30,8 +30,8 @@ fun TuneImagePanel(
         modifier = modifier
             .fillMaxWidth()
             .verticalScroll(scrollState)
-            .padding(horizontal = 24.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+            .padding(horizontal = 20.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         BespokeSlider(
             label = "Brightness", value = brightness, min = -1f, max = 1f,

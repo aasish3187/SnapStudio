@@ -145,6 +145,13 @@ data class StudioHistoryItem(
     val redCurve: Float = 0f,
     val greenCurve: Float = 0f,
     val blueCurve: Float = 0f,
+    val colorVibrance: Float = 0f,
+    val colorSaturation: Float = 1f,
+    val colorTemperature: Float = 0f,
+    val colorTint: Float = 0f,
+    val colorRed: Float = 0f,
+    val colorGreen: Float = 0f,
+    val colorBlue: Float = 0f,
     val selectedFilterMatrix: FloatArray? = null,
     val doubleExposureOpacity: Float = 0.5f
 )
@@ -176,6 +183,13 @@ data class ToolSnapshot(
     val redCurve: Float,
     val greenCurve: Float,
     val blueCurve: Float,
+    val colorVibrance: Float,
+    val colorSaturation: Float,
+    val colorTemperature: Float,
+    val colorTint: Float,
+    val colorRed: Float,
+    val colorGreen: Float,
+    val colorBlue: Float,
     val selectedFilterMatrix: FloatArray?,
     val overlays: List<OverlayItem>,
     val bitmap: Bitmap?
@@ -210,6 +224,13 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
     var redCurve by remember { mutableStateOf(0f) }
     var greenCurve by remember { mutableStateOf(0f) }
     var blueCurve by remember { mutableStateOf(0f) }
+    var colorVibrance by remember { mutableStateOf(0f) }
+    var colorSaturation by remember { mutableStateOf(1f) }
+    var colorTemperature by remember { mutableStateOf(0f) }
+    var colorTint by remember { mutableStateOf(0f) }
+    var colorRed by remember { mutableStateOf(0f) }
+    var colorGreen by remember { mutableStateOf(0f) }
+    var colorBlue by remember { mutableStateOf(0f) }
     var doubleExposureBitmap by remember { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
     var doubleExposureOpacity by remember { mutableStateOf(0.5f) }
     var selectedFilterMatrix by remember { mutableStateOf<FloatArray?>(null) }
@@ -332,6 +353,13 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
             redCurve = redCurve,
             greenCurve = greenCurve,
             blueCurve = blueCurve,
+            colorVibrance = colorVibrance,
+            colorSaturation = colorSaturation,
+            colorTemperature = colorTemperature,
+            colorTint = colorTint,
+            colorRed = colorRed,
+            colorGreen = colorGreen,
+            colorBlue = colorBlue,
             selectedFilterMatrix = selectedFilterMatrix,
             doubleExposureOpacity = doubleExposureOpacity
         )
@@ -370,6 +398,13 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
         redCurve = item.redCurve
         greenCurve = item.greenCurve
         blueCurve = item.blueCurve
+        colorVibrance = item.colorVibrance
+        colorSaturation = item.colorSaturation
+        colorTemperature = item.colorTemperature
+        colorTint = item.colorTint
+        colorRed = item.colorRed
+        colorGreen = item.colorGreen
+        colorBlue = item.colorBlue
         selectedFilterMatrix = item.selectedFilterMatrix
         doubleExposureOpacity = item.doubleExposureOpacity
         selectedOverlayId = null
@@ -401,7 +436,8 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
             brightness, contrast, saturation, temperature, tint, vignetteStrength, dehaze, genericIntensity, 
             grainStrength, lightLeakStrength, frameStyle, ambiance, highlights, shadows, warmth, 
             structure, sharpening, highTones, midTones, lowTones, protectShadows, protectHighlights, 
-            luminance, redCurve, greenCurve, blueCurve, selectedFilterMatrix, overlays, bitmap
+            luminance, redCurve, greenCurve, blueCurve, colorVibrance, colorSaturation, colorTemperature,
+            colorTint, colorRed, colorGreen, colorBlue, selectedFilterMatrix, overlays, bitmap
         )
     }
 
@@ -428,6 +464,8 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
             structure = s.structure; sharpening = s.sharpening; highTones = s.highTones; midTones = s.midTones
             lowTones = s.lowTones; protectShadows = s.protectShadows; protectHighlights = s.protectHighlights
             luminance = s.luminance; redCurve = s.redCurve; greenCurve = s.greenCurve; blueCurve = s.blueCurve
+            colorVibrance = s.colorVibrance; colorSaturation = s.colorSaturation; colorTemperature = s.colorTemperature
+            colorTint = s.colorTint; colorRed = s.colorRed; colorGreen = s.colorGreen; colorBlue = s.colorBlue
             selectedFilterMatrix = s.selectedFilterMatrix
             overlays = s.overlays
             bitmap = s.bitmap
@@ -557,28 +595,63 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
         }
     )
 
-    val combinedColorMatrix = remember(brightness, contrast, saturation, temperature, tint, dehaze, genericIntensity, selectedFilterMatrix, luminance, redCurve, greenCurve, blueCurve) {
+    val combinedColorMatrix = remember(
+        brightness, contrast, saturation, ambiance, highlights, shadows, warmth,
+        structure, sharpening,
+        highTones, midTones, lowTones, protectShadows, protectHighlights,
+        temperature, tint,
+        colorVibrance, colorSaturation, colorTemperature, colorTint, colorRed, colorGreen, colorBlue,
+        luminance, redCurve, greenCurve, blueCurve,
+        dehaze, genericIntensity, selectedFilterMatrix
+    ) {
         val androidMatrix = AndroidColorMatrix().apply {
-            setSaturation(saturation)
+            // 1. Saturation (Tune Image Saturation * Color Tool Saturation * Vibrance)
+            val netSat = (saturation * colorSaturation * (1f + colorVibrance * 0.4f)).coerceAtLeast(0f)
+            setSaturation(netSat)
+
+            // 2. Color Balance & RGB grading (from Colour tool, White balance, Warmth, and Curves)
+            val netTemp = temperature + colorTemperature + warmth
+            val netTint = tint + colorTint
+            val netRedScale = ((1f + colorRed * 0.4f + redCurve * 0.35f + luminance * 0.25f) * (1f + netTemp * 0.35f)).coerceAtLeast(0.05f)
+            val netGreenScale = ((1f + colorGreen * 0.4f + greenCurve * 0.35f + luminance * 0.25f) * (1f + netTint * 0.35f)).coerceAtLeast(0.05f)
+            val netBlueScale = ((1f + colorBlue * 0.4f + blueCurve * 0.35f + luminance * 0.25f) * (1f - netTemp * 0.35f)).coerceAtLeast(0.05f)
+            setScale(netRedScale, netGreenScale, netBlueScale, 1f)
+
+            // 3. Contrast, Structure, Sharpening, Details & Tonal Contrast
+            val netContrast = (contrast * (1f + structure * 0.35f + sharpening * 0.25f + midTones * 0.35f)).coerceIn(0.1f, 3.5f)
+            postConcat(AndroidColorMatrix(floatArrayOf(
+                netContrast, 0f, 0f, 0f, 0f,
+                0f, netContrast, 0f, 0f, 0f,
+                0f, 0f, netContrast, 0f, 0f,
+                0f, 0f, 0f, 1f, 0f
+            )))
+
+            // 4. Brightness, Ambiance, Highlights, Shadows, High Tones, Low Tones
+            val netBrightnessOffset = (brightness * 255f) + (ambiance * 35f) + (highlights * 30f) + (shadows * 25f) + (highTones * 35f) + (lowTones * 25f) - (protectHighlights * 15f) + (protectShadows * 15f)
+            postConcat(AndroidColorMatrix(floatArrayOf(
+                1f, 0f, 0f, 0f, netBrightnessOffset,
+                0f, 1f, 0f, 0f, netBrightnessOffset,
+                0f, 0f, 1f, 0f, netBrightnessOffset,
+                0f, 0f, 0f, 1f, 0f
+            )))
+
+            // 5. Dehaze
+            if (dehaze > 0f) {
+                val c = 1f + dehaze * 0.5f
+                val b = -dehaze * 22f
+                postConcat(AndroidColorMatrix(floatArrayOf(c,0f,0f,0f,b, 0f,c,0f,0f,b, 0f,0f,c,0f,b, 0f,0f,0f,1f,0f)))
+            }
+
+            // 6. Generic intensity multiplier
             if (genericIntensity != 0f && selectedFilterMatrix == null) {
                 val c = 1f + genericIntensity * 0.2f
                 postConcat(AndroidColorMatrix(floatArrayOf(c,0f,0f,0f,0f, 0f,c,0f,0f,0f, 0f,0f,c,0f,0f, 0f,0f,0f,1f,0f)))
             }
-            if (dehaze > 0f) {
-                val c = 1f + dehaze * 0.5f; val b = -dehaze * 20f
-                postConcat(AndroidColorMatrix(floatArrayOf(c,0f,0f,0f,b, 0f,c,0f,0f,b, 0f,0f,c,0f,b, 0f,0f,0f,1f,0f)))
+
+            // 7. Selected Filter Preset LUT
+            if (selectedFilterMatrix != null) {
+                postConcat(AndroidColorMatrix(selectedFilterMatrix))
             }
-            if (temperature != 0f || tint != 0f) postConcat(AndroidColorMatrix().apply { setScale(1f + temperature * 0.3f, 1f + tint * 0.3f, 1f - temperature * 0.3f, 1f) })
-            // Monotone Spline Curve Matrix Transforms
-            if (luminance != 0f || redCurve != 0f || greenCurve != 0f || blueCurve != 0f) {
-                val rScale = (1f + redCurve * 0.35f + luminance * 0.25f).coerceAtLeast(0.05f)
-                val gScale = (1f + greenCurve * 0.35f + luminance * 0.25f).coerceAtLeast(0.05f)
-                val bScale = (1f + blueCurve * 0.35f + luminance * 0.25f).coerceAtLeast(0.05f)
-                postConcat(AndroidColorMatrix().apply { setScale(rScale, gScale, bScale, 1f) })
-            }
-            postConcat(AndroidColorMatrix().apply { set(floatArrayOf(contrast,0f,0f,0f,0f, 0f,contrast,0f,0f,0f, 0f,0f,contrast,0f,0f, 0f,0f,0f,1f,0f)) })
-            postConcat(AndroidColorMatrix().apply { set(floatArrayOf(1f,0f,0f,0f,brightness * 255f, 0f,1f,0f,0f,brightness * 255f, 0f,0f,1f,0f,brightness * 255f, 0f,0f,0f,1f,0f)) })
-            if (selectedFilterMatrix != null) postConcat(AndroidColorMatrix(selectedFilterMatrix))
         }
         androidMatrix.array
     }
@@ -796,12 +869,12 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
             }
         }
 
-        // Top Canvas Area
+        // Top Canvas Area - Fixed Consistent Proportions Across All Tools
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(if (activeTab == "") 0.95f else 1.5f)
-                .padding(horizontal = 16.dp, vertical = 6.dp)
+                .weight(1f)
+                .padding(horizontal = 12.dp, vertical = 4.dp)
                 .clip(RoundedCornerShape(14.dp))
                 .background(Color.Black)
                 .pointerInput(Unit) {
@@ -1443,7 +1516,7 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
             exit = slideOutVertically(targetOffsetY = { it }),
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1.3f)
+                .height(260.dp)
         ) {
             Column(
                 modifier = Modifier
@@ -1487,348 +1560,412 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
             visible = activeTab != "",
             enter = slideInVertically(initialOffsetY = { it }),
             exit = slideOutVertically(targetOffsetY = { it }),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(260.dp)
         ) {
-            Box(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxSize()
                     .background(Ink850)
             ) {
-                Column {
-                    Box(modifier = Modifier.fillMaxWidth().wrapContentHeight().heightIn(min = 190.dp), contentAlignment = Alignment.Center) {
-                        when (activeTab) {
-                            "selective" -> {
-                                val selectedPoint = selectivePoints.firstOrNull { it.id == selectedPointId } ?: selectivePoints.lastOrNull()
-                                com.snapstudio.app.ui.components.SelectivePointPanel(
-                                    controlPoints = selectivePoints,
-                                    selectedPoint = selectedPoint,
-                                    onPointUpdated = { updated ->
-                                        selectivePoints = selectivePoints.map { if (it.id == updated.id) updated else it }
-                                    },
-                                    onAddPointClicked = {
-                                        val b = bitmap
-                                        if (b != null) {
-                                            val newPt = SelectiveControlPoint(
-                                                x = 0.5f,
-                                                y = 0.5f,
-                                                radius = (b.width * 0.22f).coerceIn(80f, 400f),
-                                                brightness = 0.25f
-                                            )
-                                            selectivePoints = selectivePoints + newPt
-                                            selectedPointId = newPt.id
-                                        }
-                                    },
-                                    onDeletePoint = {
-                                        if (selectedPoint != null) {
-                                            selectivePoints = selectivePoints.filter { it.id != selectedPoint.id }
-                                            selectedPointId = selectivePoints.lastOrNull()?.id
-                                        }
-                                    },
-                                    onResetPoint = {
-                                        if (selectedPoint != null) {
-                                            val reset = selectedPoint.copy(brightness = 0f, contrast = 1f, saturation = 1f, temperature = 0f)
-                                            selectivePoints = selectivePoints.map { if (it.id == selectedPoint.id) reset else it }
-                                        }
-                                    }
-                                )
-                            }
-                            "brush" -> com.snapstudio.app.ui.components.SelectiveBrushPanel(
-                                activeMode = selectiveMode,
-                                onModeChanged = { selectiveMode = it },
-                                exposureEV = selectiveExposureEV,
-                                onExposureChanged = { selectiveExposureEV = it },
-                                temperature = selectiveTemperature,
-                                onTemperatureChanged = { selectiveTemperature = it },
-                                saturation = selectiveSaturation,
-                                onSaturationChanged = { selectiveSaturation = it },
-                                contrast = selectiveContrast,
-                                onContrastChanged = { selectiveContrast = it },
-                                brushSize = selectiveBrushSize,
-                                onBrushSizeChanged = { selectiveBrushSize = it },
-                                brushHardness = selectiveBrushHardness,
-                                onBrushHardnessChanged = { selectiveBrushHardness = it },
-                                isEraseMode = selectiveIsErase,
-                                onToggleErase = { selectiveIsErase = it },
-                                showMaskRubylith = selectiveShowRubylith,
-                                onToggleMaskRubylith = { selectiveShowRubylith = it },
-                                onInvertMask = { selectiveMaskEngine.invert(); maskVersion++ },
-                                onClearMask = { selectiveMaskEngine.clear(); maskVersion++ },
-                                onAiSelectSubject = {
-                                    val cur = bitmap ?: return@SelectiveBrushPanel
-                                    coroutineScope.launch {
-                                        val subjectMask = AiSegmentationEngine.segmentSubject(cur)
-                                        selectiveMaskEngine.restoreMask(subjectMask)
-                                        maskVersion++
-                                        selectiveShowRubylith = true
-                                        Toast.makeText(context, "Subject Isolated for Grading", Toast.LENGTH_SHORT).show()
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    when (activeTab) {
+                        "selective" -> {
+                            val selectedPoint = selectivePoints.firstOrNull { it.id == selectedPointId } ?: selectivePoints.lastOrNull()
+                            com.snapstudio.app.ui.components.SelectivePointPanel(
+                                controlPoints = selectivePoints,
+                                selectedPoint = selectedPoint,
+                                onPointUpdated = { updated ->
+                                    selectivePoints = selectivePoints.map { if (it.id == updated.id) updated else it }
+                                },
+                                onAddPointClicked = {
+                                    val b = bitmap
+                                    if (b != null) {
+                                        val newPt = SelectiveControlPoint(
+                                            x = 0.5f,
+                                            y = 0.5f,
+                                            radius = (b.width * 0.22f).coerceIn(80f, 400f),
+                                            brightness = 0.25f
+                                        )
+                                        selectivePoints = selectivePoints + newPt
+                                        selectedPointId = newPt.id
                                     }
                                 },
-                                onAiSelectBackground = {
-                                    val cur = bitmap ?: return@SelectiveBrushPanel
-                                    coroutineScope.launch {
-                                        val bgMask = AiSegmentationEngine.segmentBackground(cur)
-                                        selectiveMaskEngine.restoreMask(bgMask)
-                                        maskVersion++
-                                        selectiveShowRubylith = true
-                                        Toast.makeText(context, "Background Isolated for Grading", Toast.LENGTH_SHORT).show()
+                                onDeletePoint = {
+                                    if (selectedPoint != null) {
+                                        selectivePoints = selectivePoints.filter { it.id != selectedPoint.id }
+                                        selectedPointId = selectivePoints.lastOrNull()?.id
                                     }
                                 },
-                                onAiSelectSky = {
-                                    val cur = bitmap ?: return@SelectiveBrushPanel
-                                    coroutineScope.launch {
-                                        val skyMask = AiSegmentationEngine.segmentSky(cur)
-                                        selectiveMaskEngine.restoreMask(skyMask)
-                                        maskVersion++
-                                        selectiveShowRubylith = true
-                                        Toast.makeText(context, "Sky Isolated for Grading", Toast.LENGTH_SHORT).show()
+                                onResetPoint = {
+                                    if (selectedPoint != null) {
+                                        val reset = selectedPoint.copy(brightness = 0f, contrast = 1f, saturation = 1f, temperature = 0f)
+                                        selectivePoints = selectivePoints.map { if (it.id == selectedPoint.id) reset else it }
                                     }
                                 }
                             )
-                            "tune_image", "adjust", "colour" -> com.snapstudio.app.ui.components.TuneImagePanel(brightness, contrast, saturation, ambiance, highlights, shadows, warmth, {brightness=it}, {contrast=it}, {saturation=it}, {ambiance=it}, {highlights=it}, {shadows=it}, {warmth=it})
-                            "details" -> com.snapstudio.app.ui.components.DetailsPanel(structure, sharpening, {structure=it}, {sharpening=it})
-                            "tonal_contrast" -> com.snapstudio.app.ui.components.TonalContrastPanel(highTones, midTones, lowTones, protectShadows, protectHighlights, {highTones=it}, {midTones=it}, {lowTones=it}, {protectShadows=it}, {protectHighlights=it})
-                            "curves" -> com.snapstudio.app.ui.components.CurvesPanel(luminance, redCurve, greenCurve, blueCurve, {luminance=it}, {redCurve=it}, {greenCurve=it}, {blueCurve=it})
-                            "white_balance" -> com.snapstudio.app.ui.components.WhiteBalancePanel(temperature, tint, {temperature=it}, {tint=it})
-                            "vignette" -> com.snapstudio.app.ui.components.VignettePanel(vignetteStrength, {vignetteStrength=it})
-                            "dehaze" -> com.snapstudio.app.ui.components.DehazePanel(dehaze, {dehaze=it})
-                            "grain" -> com.snapstudio.app.ui.components.GrainPanel(grainStrength, {grainStrength=it})
-                            "light_leak" -> com.snapstudio.app.ui.components.LightLeakPanel(lightLeakStrength, {lightLeakStrength=it})
-                            "frames" -> com.snapstudio.app.ui.components.FramesPanel(frameStyle, {frameStyle=it})
-                            "double_exposure" -> com.snapstudio.app.ui.components.DoubleExposurePanel(doubleExposureOpacity, {doubleExposureOpacity=it}, { doubleExposurePicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) })
-                            "lens_blur" -> {
-                                LensBlurPanel(
-                                    blurStrength = lensBlurStrength,
-                                    onBlurStrengthChanged = { lensBlurStrength = it },
-                                    blurShape = lensBlurShape,
-                                    onBlurShapeChanged = { lensBlurShape = it },
-                                    focalSize = lensBlurFocalSize,
-                                    onFocalSizeChanged = { lensBlurFocalSize = it }
-                                )
-                            }
-                            "vintage", "bw", "noir", "drama", "hdr_scape", "retrolux", "grunge" -> {
-                                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                    Text(activeTab.uppercase(), color = Amber, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    Text("Preview Active • Tap Apply to Confirm or Cancel", color = FgMuted, fontSize = 13.sp)
+                        }
+                        "brush" -> com.snapstudio.app.ui.components.SelectiveBrushPanel(
+                            activeMode = selectiveMode,
+                            onModeChanged = { selectiveMode = it },
+                            exposureEV = selectiveExposureEV,
+                            onExposureChanged = { selectiveExposureEV = it },
+                            temperature = selectiveTemperature,
+                            onTemperatureChanged = { selectiveTemperature = it },
+                            saturation = selectiveSaturation,
+                            onSaturationChanged = { selectiveSaturation = it },
+                            contrast = selectiveContrast,
+                            onContrastChanged = { selectiveContrast = it },
+                            brushSize = selectiveBrushSize,
+                            onBrushSizeChanged = { selectiveBrushSize = it },
+                            brushHardness = selectiveBrushHardness,
+                            onBrushHardnessChanged = { selectiveBrushHardness = it },
+                            isEraseMode = selectiveIsErase,
+                            onToggleErase = { selectiveIsErase = it },
+                            showMaskRubylith = selectiveShowRubylith,
+                            onToggleMaskRubylith = { selectiveShowRubylith = it },
+                            onInvertMask = { selectiveMaskEngine.invert(); maskVersion++ },
+                            onClearMask = { selectiveMaskEngine.clear(); maskVersion++ },
+                            onAiSelectSubject = {
+                                val cur = bitmap ?: return@SelectiveBrushPanel
+                                coroutineScope.launch {
+                                    val subjectMask = AiSegmentationEngine.segmentSubject(cur)
+                                    selectiveMaskEngine.restoreMask(subjectMask)
+                                    maskVersion++
+                                    selectiveShowRubylith = true
+                                    Toast.makeText(context, "Subject Isolated for Grading", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            onAiSelectBackground = {
+                                val cur = bitmap ?: return@SelectiveBrushPanel
+                                coroutineScope.launch {
+                                    val bgMask = AiSegmentationEngine.segmentBackground(cur)
+                                    selectiveMaskEngine.restoreMask(bgMask)
+                                    maskVersion++
+                                    selectiveShowRubylith = true
+                                    Toast.makeText(context, "Background Isolated for Grading", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            onAiSelectSky = {
+                                val cur = bitmap ?: return@SelectiveBrushPanel
+                                coroutineScope.launch {
+                                    val skyMask = AiSegmentationEngine.segmentSky(cur)
+                                    selectiveMaskEngine.restoreMask(skyMask)
+                                    maskVersion++
+                                    selectiveShowRubylith = true
+                                    Toast.makeText(context, "Sky Isolated for Grading", Toast.LENGTH_SHORT).show()
                                 }
                             }
-                            "object_remove" -> {
-                                BackgroundRemoverPanel(
-                                    brushSize = healingBrushSize,
-                                    onBrushSizeChanged = { healingBrushSize = it },
-                                    isEraseMode = healingIsErase,
-                                    onToggleErase = { healingIsErase = it },
-                                    isProcessing = isHealingInProgress,
-                                    onRemoveBackground = {
-                                        val cur = bitmap ?: return@BackgroundRemoverPanel
-                                        if (!isHealingInProgress) {
-                                            isHealingInProgress = true
-                                            coroutineScope.launch {
-                                                try {
-                                                    val cutout = AiSegmentationEngine.removeBackground(cur)
-                                                    bitmap = cutout
-                                                    commitHistory(overlays, cutout)
-                                                    isHealingInProgress = false
-                                                    Toast.makeText(context, "Background Removed!", Toast.LENGTH_SHORT).show()
-                                                } catch (e: Exception) {
-                                                    e.printStackTrace()
-                                                    isHealingInProgress = false
-                                                    Toast.makeText(context, "Failed to remove background", Toast.LENGTH_SHORT).show()
-                                                }
-                                            }
-                                        }
-                                    },
-                                    onApplyBrushErase = {
-                                        val cur = bitmap
-                                        if (cur != null && !isHealingInProgress) {
-                                            isHealingInProgress = true
-                                            coroutineScope.launch {
-                                                try {
-                                                    val erased = FastInpaintingEngine.inpaint(
-                                                        source = cur,
-                                                        mask = healingMaskEngine.maskBitmap,
-                                                        radius = (healingBrushSize * 0.15f).toInt().coerceIn(4, 12)
-                                                    )
-                                                    bitmap = erased
-                                                    healingMaskEngine.clear()
-                                                    healingMaskVersion++
-                                                    isHealingInProgress = false
-                                                    commitHistory(overlays, erased)
-                                                    Toast.makeText(context, "Brushed Area Erased!", Toast.LENGTH_SHORT).show()
-                                                } catch (e: Exception) {
-                                                    e.printStackTrace()
-                                                    isHealingInProgress = false
-                                                    Toast.makeText(context, "Erase failed", Toast.LENGTH_SHORT).show()
-                                                }
-                                            }
-                                        }
-                                    },
-                                    onClearSelection = {
-                                        healingMaskEngine.clear()
-                                        healingMaskVersion++
-                                    }
-                                )
+                        )
+                        "tune_image", "adjust" -> com.snapstudio.app.ui.components.TuneImagePanel(
+                            brightness = brightness,
+                            contrast = contrast,
+                            saturation = saturation,
+                            ambiance = ambiance,
+                            highlights = highlights,
+                            shadows = shadows,
+                            warmth = warmth,
+                            onBrightnessChanged = { brightness = it },
+                            onContrastChanged = { contrast = it },
+                            onSaturationChanged = { saturation = it },
+                            onAmbianceChanged = { ambiance = it },
+                            onHighlightsChanged = { highlights = it },
+                            onShadowsChanged = { shadows = it },
+                            onWarmthChanged = { warmth = it }
+                        )
+                        "colour" -> com.snapstudio.app.ui.components.ColourPanel(
+                            vibrance = colorVibrance,
+                            saturation = colorSaturation,
+                            temperature = colorTemperature,
+                            tint = colorTint,
+                            redBalance = colorRed,
+                            greenBalance = colorGreen,
+                            blueBalance = colorBlue,
+                            onVibranceChanged = { colorVibrance = it },
+                            onSaturationChanged = { colorSaturation = it },
+                            onTemperatureChanged = { colorTemperature = it },
+                            onTintChanged = { colorTint = it },
+                            onRedBalanceChanged = { colorRed = it },
+                            onGreenBalanceChanged = { colorGreen = it },
+                            onBlueBalanceChanged = { colorBlue = it }
+                        )
+                        "details" -> com.snapstudio.app.ui.components.DetailsPanel(structure, sharpening, {structure=it}, {sharpening=it})
+                        "tonal_contrast" -> com.snapstudio.app.ui.components.TonalContrastPanel(highTones, midTones, lowTones, protectShadows, protectHighlights, {highTones=it}, {midTones=it}, {lowTones=it}, {protectShadows=it}, {protectHighlights=it})
+                        "curves" -> com.snapstudio.app.ui.components.CurvesPanel(luminance, redCurve, greenCurve, blueCurve, {luminance=it}, {redCurve=it}, {greenCurve=it}, {blueCurve=it})
+                        "white_balance" -> com.snapstudio.app.ui.components.WhiteBalancePanel(temperature, tint, {temperature=it}, {tint=it})
+                        "vignette" -> com.snapstudio.app.ui.components.VignettePanel(vignetteStrength, {vignetteStrength=it})
+                        "dehaze" -> com.snapstudio.app.ui.components.DehazePanel(dehaze, {dehaze=it})
+                        "grain" -> com.snapstudio.app.ui.components.GrainPanel(grainStrength, {grainStrength=it})
+                        "light_leak" -> com.snapstudio.app.ui.components.LightLeakPanel(lightLeakStrength, {lightLeakStrength=it})
+                        "frames" -> com.snapstudio.app.ui.components.FramesPanel(frameStyle, {frameStyle=it})
+                        "double_exposure" -> com.snapstudio.app.ui.components.DoubleExposurePanel(doubleExposureOpacity, {doubleExposureOpacity=it}, { doubleExposurePicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) })
+                        "lens_blur" -> {
+                            LensBlurPanel(
+                                blurStrength = lensBlurStrength,
+                                onBlurStrengthChanged = { lensBlurStrength = it },
+                                blurShape = lensBlurShape,
+                                onBlurShapeChanged = { lensBlurShape = it },
+                                focalSize = lensBlurFocalSize,
+                                onFocalSizeChanged = { lensBlurFocalSize = it }
+                            )
+                        }
+                        "vintage", "bw", "noir", "drama", "hdr_scape", "retrolux", "grunge" -> {
+                            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                                Text(activeTab.uppercase(), color = Amber, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text("Preview Active • Tap Apply to Confirm or Cancel", color = FgMuted, fontSize = 13.sp)
                             }
-                            "face_restore" -> {
-                                FaceRestorePanel(
-                                    skinSmooth = faceSkinSmooth,
-                                    onSkinSmoothChanged = { faceSkinSmooth = it },
-                                    eyeClarity = faceEyeClarity,
-                                    onEyeClarityChanged = { faceEyeClarity = it },
-                                    teethWhiten = faceTeethWhiten,
-                                    onTeethWhitenChanged = { faceTeethWhiten = it },
-                                    relightIntensity = faceRelightIntensity,
-                                    onRelightIntensityChanged = { faceRelightIntensity = it },
-                                    relightAngle = faceRelightAngle,
-                                    onRelightAngleChanged = { faceRelightAngle = it },
-                                    isProcessing = isFaceProcessing,
-                                    onApplyEnhance = {
-                                        val cur = bitmap
-                                        if (cur != null && !isFaceProcessing) {
-                                            isFaceProcessing = true
-                                            coroutineScope.launch {
-                                                try {
-                                                    val enhanced = AiFaceMeshEngine.retouchPortrait(
-                                                        source = cur,
-                                                        skinSmooth = faceSkinSmooth,
-                                                        eyeClarity = faceEyeClarity,
-                                                        teethWhiten = faceTeethWhiten,
-                                                        relightIntensity = faceRelightIntensity,
-                                                        relightAngleDeg = faceRelightAngle
-                                                    )
-                                                    bitmap = enhanced
-                                                    commitHistory(overlays, enhanced)
-                                                    isFaceProcessing = false
-                                                    Toast.makeText(context, "468-Point AI Portrait Applied!", Toast.LENGTH_SHORT).show()
-                                                } catch (e: Exception) {
-                                                    e.printStackTrace()
-                                                    isFaceProcessing = false
-                                                    Toast.makeText(context, "Retouch failed", Toast.LENGTH_SHORT).show()
-                                                }
+                        }
+                        "object_remove" -> {
+                            BackgroundRemoverPanel(
+                                brushSize = healingBrushSize,
+                                onBrushSizeChanged = { healingBrushSize = it },
+                                isEraseMode = healingIsErase,
+                                onToggleErase = { healingIsErase = it },
+                                isProcessing = isHealingInProgress,
+                                onRemoveBackground = {
+                                    val cur = bitmap ?: return@BackgroundRemoverPanel
+                                    if (!isHealingInProgress) {
+                                        isHealingInProgress = true
+                                        coroutineScope.launch {
+                                            try {
+                                                val cutout = AiSegmentationEngine.removeBackground(cur)
+                                                bitmap = cutout
+                                                commitHistory(overlays, cutout)
+                                                isHealingInProgress = false
+                                                Toast.makeText(context, "Background Removed!", Toast.LENGTH_SHORT).show()
+                                            } catch (e: Exception) {
+                                                e.printStackTrace()
+                                                isHealingInProgress = false
+                                                Toast.makeText(context, "Failed to remove background", Toast.LENGTH_SHORT).show()
                                             }
                                         }
                                     }
-                                )
-                            }
-                            "text" -> {
-                                var customText by remember { mutableStateOf("") }
-                                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                        OutlinedTextField(value = customText, onValueChange = { customText = it }, placeholder = { Text("Type custom text...", color = FgMuted) }, singleLine = true, modifier = Modifier.weight(1f), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Fg, unfocusedTextColor = Fg, focusedBorderColor = Amber, unfocusedBorderColor = Line))
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Button(onClick = {
-                                            if (customText.isNotBlank()) {
-                                                val newItem = OverlayItem(
-                                                    id = UUID.randomUUID().toString(),
-                                                    type = OverlayType.TEXT,
-                                                    content = customText,
-                                                    x = 0f,
-                                                    y = 0f
+                                },
+                                onApplyBrushErase = {
+                                    val cur = bitmap
+                                    if (cur != null && !isHealingInProgress) {
+                                        isHealingInProgress = true
+                                        coroutineScope.launch {
+                                            try {
+                                                val erased = FastInpaintingEngine.inpaint(
+                                                    source = cur,
+                                                    mask = healingMaskEngine.maskBitmap,
+                                                    radius = (healingBrushSize * 0.15f).toInt().coerceIn(4, 12)
                                                 )
-                                                overlays = overlays + newItem
-                                                selectedOverlayId = newItem.id
-                                                commitHistory(overlays, bitmap)
-                                                customText = ""
+                                                bitmap = erased
+                                                healingMaskEngine.clear()
+                                                healingMaskVersion++
+                                                isHealingInProgress = false
+                                                commitHistory(overlays, erased)
+                                                Toast.makeText(context, "Brushed Area Erased!", Toast.LENGTH_SHORT).show()
+                                            } catch (e: Exception) {
+                                                e.printStackTrace()
+                                                isHealingInProgress = false
+                                                Toast.makeText(context, "Erase failed", Toast.LENGTH_SHORT).show()
                                             }
-                                        }, colors = ButtonDefaults.buttonColors(containerColor = Amber, contentColor = Ink900)) { Text("Add") }
+                                        }
+                                    }
+                                },
+                                onClearSelection = {
+                                    healingMaskEngine.clear()
+                                    healingMaskVersion++
+                                }
+                            )
+                        }
+                        "face_restore" -> {
+                            FaceRestorePanel(
+                                skinSmooth = faceSkinSmooth,
+                                onSkinSmoothChanged = { faceSkinSmooth = it },
+                                eyeClarity = faceEyeClarity,
+                                onEyeClarityChanged = { faceEyeClarity = it },
+                                teethWhiten = faceTeethWhiten,
+                                onTeethWhitenChanged = { faceTeethWhiten = it },
+                                relightIntensity = faceRelightIntensity,
+                                onRelightIntensityChanged = { faceRelightIntensity = it },
+                                relightAngle = faceRelightAngle,
+                                onRelightAngleChanged = { faceRelightAngle = it },
+                                isProcessing = isFaceProcessing,
+                                onApplyEnhance = {
+                                    val cur = bitmap
+                                    if (cur != null && !isFaceProcessing) {
+                                        isFaceProcessing = true
+                                        coroutineScope.launch {
+                                            try {
+                                                val enhanced = AiFaceMeshEngine.retouchPortrait(
+                                                    source = cur,
+                                                    skinSmooth = faceSkinSmooth,
+                                                    eyeClarity = faceEyeClarity,
+                                                    teethWhiten = faceTeethWhiten,
+                                                    relightIntensity = faceRelightIntensity,
+                                                    relightAngleDeg = faceRelightAngle
+                                                )
+                                                bitmap = enhanced
+                                                commitHistory(overlays, enhanced)
+                                                isFaceProcessing = false
+                                                Toast.makeText(context, "468-Point AI Portrait Applied!", Toast.LENGTH_SHORT).show()
+                                            } catch (e: Exception) {
+                                                e.printStackTrace()
+                                                isFaceProcessing = false
+                                                Toast.makeText(context, "Retouch failed", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
                                     }
                                 }
+                            )
+                        }
+                        "text" -> {
+                            var customText by remember { mutableStateOf("") }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    OutlinedTextField(value = customText, onValueChange = { customText = it }, placeholder = { Text("Type custom text...", color = FgMuted) }, singleLine = true, modifier = Modifier.weight(1f), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Fg, unfocusedTextColor = Fg, focusedBorderColor = Amber, unfocusedBorderColor = Line))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Button(onClick = {
+                                        if (customText.isNotBlank()) {
+                                            val newItem = OverlayItem(
+                                                id = UUID.randomUUID().toString(),
+                                                type = OverlayType.TEXT,
+                                                content = customText,
+                                                x = 0f,
+                                                y = 0f
+                                            )
+                                            overlays = overlays + newItem
+                                            selectedOverlayId = newItem.id
+                                            commitHistory(overlays, bitmap)
+                                            customText = ""
+                                        }
+                                    }, colors = ButtonDefaults.buttonColors(containerColor = Amber, contentColor = Ink900)) { Text("Add") }
+                                }
                             }
-                            "crop" -> {
-                                Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                    listOf("1:1" to 1f, "3:4" to 0.75f, "16:9" to 16f/9f).forEach { (label, ratio) ->
-                                        Box(modifier = Modifier.background(Ink700, RoundedCornerShape(12.dp)).clickable {
-                                            val cur = bitmap ?: return@clickable
-                                            val cr = cur.width.toFloat() / cur.height.toFloat()
-                                            val (nw, nh) = if (cr > ratio) (cur.height * ratio).toInt() to cur.height else cur.width to (cur.width / ratio).toInt()
-                                            if (nw > 0 && nh > 0) {
-                                                val cropped = Bitmap.createBitmap(cur, (cur.width - nw)/2, (cur.height - nh)/2, nw, nh)
-                                                bitmap = cropped
-                                                commitHistory(overlays, cropped)
-                                            }
-                                        }.padding(horizontal = 16.dp, vertical = 8.dp)) { Text(label, color = Fg, fontWeight = FontWeight.Bold) }
-                                    }
+                        }
+                        "crop" -> {
+                            Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                listOf("1:1" to 1f, "3:4" to 0.75f, "16:9" to 16f/9f).forEach { (label, ratio) ->
                                     Box(modifier = Modifier.background(Ink700, RoundedCornerShape(12.dp)).clickable {
                                         val cur = bitmap ?: return@clickable
-                                        val m = android.graphics.Matrix().apply { postRotate(90f) }
-                                        val rotated = Bitmap.createBitmap(cur, 0, 0, cur.width, cur.height, m, true)
-                                        bitmap = rotated
-                                        commitHistory(overlays, rotated)
-                                    }.padding(horizontal = 16.dp, vertical = 8.dp)) { Text("Rotate", color = Fg, fontWeight = FontWeight.Bold) }
-                                }
-                            }
-                            "trim" -> {
-                                if (isVideo) {
-                                    var durationMs by remember { mutableStateOf(0L) }
-                                    LaunchedEffect(exoPlayer) {
-                                        while (durationMs == 0L) {
-                                            val dur = exoPlayer?.duration ?: 0L
-                                            if (dur > 0) durationMs = dur
-                                            kotlinx.coroutines.delay(100)
+                                        val cr = cur.width.toFloat() / cur.height.toFloat()
+                                        val (nw, nh) = if (cr > ratio) (cur.height * ratio).toInt() to cur.height else cur.width to (cur.width / ratio).toInt()
+                                        if (nw > 0 && nh > 0) {
+                                            val cropped = Bitmap.createBitmap(cur, (cur.width - nw)/2, (cur.height - nh)/2, nw, nh)
+                                            bitmap = cropped
+                                            commitHistory(overlays, cropped)
                                         }
-                                    }
-                                    if (durationMs > 0L) {
-                                        com.snapstudio.app.ui.components.VideoTimeline(durationMs, videoTrimStart, if (videoTrimEnd == -1L) durationMs else videoTrimEnd, onTrimChanged = { start, end -> videoTrimStart = start; videoTrimEnd = end; exoPlayer?.seekTo(start) })
-                                    }
+                                    }.padding(horizontal = 16.dp, vertical = 8.dp)) { Text(label, color = Fg, fontWeight = FontWeight.Bold) }
                                 }
+                                Box(modifier = Modifier.background(Ink700, RoundedCornerShape(12.dp)).clickable {
+                                    val cur = bitmap ?: return@clickable
+                                    val m = android.graphics.Matrix().apply { postRotate(90f) }
+                                    val rotated = Bitmap.createBitmap(cur, 0, 0, cur.width, cur.height, m, true)
+                                    bitmap = rotated
+                                    commitHistory(overlays, rotated)
+                                }.padding(horizontal = 16.dp, vertical = 8.dp)) { Text("Rotate", color = Fg, fontWeight = FontWeight.Bold) }
                             }
-                            "filters" -> com.snapstudio.app.ui.components.FilterCarousel(
-                                filters = com.snapstudio.app.filters.FilterPresetRepository.allFilters,
-                                activeFilterId = null,
-                                thumbnailBitmap = thumbnailImageBitmap,
-                                onSelect = { if (it is com.snapstudio.app.filters.FilterPreset.ColorMatrix) selectedFilterMatrix = it.matrix }
-                            )
-                            "stickers" -> {
-                                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("Badges & Watermarks", color = Fg, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Box(modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Amber).clickable { customStickerPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }.padding(horizontal = 12.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(Icons.Outlined.AddPhotoAlternate, contentDescription = "Custom", tint = Ink900, modifier = Modifier.size(18.dp))
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text("Custom", color = Ink900, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                            }
-                                        }
-                                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
-                                            val stamps = listOf("RAW", "PRO", "35mm", "4K", "REC", "STUDIO", "ISO 100", "CINEMA", "LEICA", "HDR", "SNAP")
-                                            items(stamps) { stamp ->
-                                                Box(
-                                                    modifier = Modifier
-                                                        .clip(RoundedCornerShape(8.dp))
-                                                        .background(Ink700)
-                                                        .border(1.dp, Line.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                                                        .clickable {
-                                                            val newItem = OverlayItem(
-                                                                id = UUID.randomUUID().toString(),
-                                                                type = OverlayType.STICKER,
-                                                                content = stamp,
-                                                                x = 0f,
-                                                                y = 0f
-                                                            )
-                                                            overlays = overlays + newItem
-                                                            selectedOverlayId = newItem.id
-                                                            commitHistory(overlays, bitmap)
-                                                        }
-                                                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text(text = stamp, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 1.sp)
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            else -> com.snapstudio.app.ui.components.GenericToolPanel(activeTab, genericIntensity, { genericIntensity = it })
                         }
+                        "trim" -> {
+                            if (isVideo) {
+                                var durationMs by remember { mutableStateOf(0L) }
+                                LaunchedEffect(exoPlayer) {
+                                    while (durationMs == 0L) {
+                                        val dur = exoPlayer?.duration ?: 0L
+                                        if (dur > 0) durationMs = dur
+                                        kotlinx.coroutines.delay(100)
+                                    }
+                                }
+                                if (durationMs > 0L) {
+                                    com.snapstudio.app.ui.components.VideoTimeline(durationMs, videoTrimStart, if (videoTrimEnd == -1L) durationMs else videoTrimEnd, onTrimChanged = { start, end -> videoTrimStart = start; videoTrimEnd = end; exoPlayer?.seekTo(start) })
+                                }
+                            }
+                        }
+                        "filters" -> com.snapstudio.app.ui.components.FilterCarousel(
+                            filters = com.snapstudio.app.filters.FilterPresetRepository.allFilters,
+                            activeFilterId = null,
+                            thumbnailBitmap = thumbnailImageBitmap,
+                            onSelect = { if (it is com.snapstudio.app.filters.FilterPreset.ColorMatrix) selectedFilterMatrix = it.matrix }
+                        )
+                        "stickers" -> {
+                            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("Badges & Watermarks", color = Fg, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Box(modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(Amber).clickable { customStickerPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }.padding(horizontal = 12.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Outlined.AddPhotoAlternate, contentDescription = "Custom", tint = Ink900, modifier = Modifier.size(18.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Custom", color = Ink900, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        }
+                                    }
+                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
+                                        val stamps = listOf("RAW", "PRO", "35mm", "4K", "REC", "STUDIO", "ISO 100", "CINEMA", "LEICA", "HDR", "SNAP")
+                                        items(stamps) { stamp ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(Ink700)
+                                                    .border(1.dp, Line.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                                                    .clickable {
+                                                        val newItem = OverlayItem(
+                                                            id = UUID.randomUUID().toString(),
+                                                            type = OverlayType.STICKER,
+                                                            content = stamp,
+                                                            x = 0f,
+                                                            y = 0f
+                                                        )
+                                                        overlays = overlays + newItem
+                                                        selectedOverlayId = newItem.id
+                                                        commitHistory(overlays, bitmap)
+                                                    }
+                                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(text = stamp, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp, letterSpacing = 1.sp)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        else -> com.snapstudio.app.ui.components.GenericToolPanel(activeTab, genericIntensity, { genericIntensity = it })
                     }
-                    Divider(color = Line, thickness = 1.dp)
-                    Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.Close, contentDescription = "Cancel", tint = Color(0xFFFF5252), modifier = Modifier.size(28.dp).clickable { cancelTool() })
-                        Text(text = if (activeTab == "object_remove") "BACKGROUND REMOVER" else activeTab.replace("_", " ").uppercase(), color = Fg, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        Icon(Icons.Outlined.Check, contentDescription = "Apply", tint = Amber, modifier = Modifier.size(28.dp).clickable { applyTool() })
-                    }
+                }
+                Divider(color = Line, thickness = 1.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                        .padding(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Outlined.Close,
+                        contentDescription = "Cancel",
+                        tint = Color(0xFFFF5252),
+                        modifier = Modifier.size(26.dp).clickable { cancelTool() }
+                    )
+                    Text(
+                        text = when (activeTab) {
+                            "object_remove" -> "BACKGROUND REMOVER"
+                            "face_restore" -> "AI PORTRAIT"
+                            "colour" -> "COLOUR"
+                            else -> activeTab.replace("_", " ").uppercase()
+                        },
+                        color = Fg,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                    Icon(
+                        Icons.Outlined.Check,
+                        contentDescription = "Apply",
+                        tint = Amber,
+                        modifier = Modifier.size(26.dp).clickable { applyTool() }
+                    )
                 }
             }
         }
