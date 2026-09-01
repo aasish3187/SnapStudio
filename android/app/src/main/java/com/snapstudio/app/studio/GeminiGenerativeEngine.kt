@@ -60,6 +60,12 @@ object GeminiGenerativeEngine {
                                     put("data", srcB64)
                                 })
                             })
+                            put(JSONObject().apply {
+                                put("inline_data", JSONObject().apply {
+                                    put("mime_type", "image/png")
+                                    put("data", maskB64)
+                                })
+                            })
                         })
                     })
                 })

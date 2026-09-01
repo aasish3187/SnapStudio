@@ -181,7 +181,7 @@ fun GenericToolPanel(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Intensity", color = FgFaint, modifier = Modifier.weight(1f))
+            Text(if (toolName.isNotBlank()) toolName else "Intensity", color = FgFaint, modifier = Modifier.weight(1f))
             Slider(
                 value = strength,
                 onValueChange = onStrengthChanged,

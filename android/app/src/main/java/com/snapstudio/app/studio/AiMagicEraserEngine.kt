@@ -16,8 +16,8 @@ object AiMagicEraserEngine {
         mask: Bitmap,
         refineMaskWithAi: Boolean = true
     ): Bitmap = withContext(Dispatchers.Default) {
-        // Run Directional Fast Marching inpainting with boundary Poisson synthesis
-        FastInpaintingEngine.inpaint(source, mask, radius = 10)
+        val inpaintRadius = if (refineMaskWithAi) 12 else 8
+        FastInpaintingEngine.inpaint(source, mask, radius = inpaintRadius)
     }
 
     /**

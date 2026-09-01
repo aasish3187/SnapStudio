@@ -75,6 +75,14 @@ object GalleryThumbnailLoader {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 bmp = context.contentResolver.loadThumbnail(uri, Size(240, 320), null)
+            } else if (isVideo) {
+                val retriever = android.media.MediaMetadataRetriever()
+                try {
+                    retriever.setDataSource(context, uri)
+                    bmp = retriever.getFrameAtTime(0, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                } finally {
+                    retriever.release()
+                }
             } else {
                 val options = android.graphics.BitmapFactory.Options().apply {
                     inJustDecodeBounds = true

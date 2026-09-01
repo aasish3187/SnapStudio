@@ -35,7 +35,7 @@ object ExportHelper {
             val resultBitmap = Bitmap.createBitmap(
                 sourceBitmap.width,
                 sourceBitmap.height,
-                sourceBitmap.config ?: Bitmap.Config.ARGB_8888
+                Bitmap.Config.ARGB_8888
             )
 
             val canvas = Canvas(resultBitmap)

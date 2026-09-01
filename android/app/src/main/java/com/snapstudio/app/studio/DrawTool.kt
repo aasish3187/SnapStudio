@@ -27,7 +27,7 @@ fun DrawToolOverlay() {
                     currentPath = null
                 },
                 onDragCancel = { currentPath = null }
-            ) { change, dragAmount ->
+            ) { change, _ ->
                 change.consume()
                 currentPath?.lineTo(change.position.x, change.position.y)
             }

@@ -75,6 +75,7 @@ class SelectiveMaskEngine(
             maskCanvas.drawCircle(point.x, point.y, safeRadius, eraseDotPaint)
         } else {
             drawDotPaint.alpha = (opacity.coerceIn(0.1f, 1f) * 255).toInt()
+            drawDotPaint.maskFilter = if (hardness < 0.95f) android.graphics.BlurMaskFilter(max(1f, safeRadius * (1f - hardness) * 0.35f), android.graphics.BlurMaskFilter.Blur.NORMAL) else null
             maskCanvas.drawCircle(point.x, point.y, safeRadius, drawDotPaint)
         }
     }
@@ -90,11 +91,12 @@ class SelectiveMaskEngine(
         } else {
             drawPaint.strokeWidth = strokeWidth
             drawPaint.alpha = (opacity.coerceIn(0.1f, 1f) * 255).toInt()
-            maskCanvas.drawLine(start.x, start.y, currentPoint.x, currentPoint.y, drawPaint)
+            drawPaint.maskFilter = if (hardness < 0.95f) android.graphics.BlurMaskFilter(max(1f, radius * (1f - hardness) * 0.35f), android.graphics.BlurMaskFilter.Blur.NORMAL) else null
             drawDotPaint.alpha = (opacity.coerceIn(0.1f, 1f) * 255).toInt()
+            drawDotPaint.maskFilter = if (hardness < 0.95f) android.graphics.BlurMaskFilter(max(1f, radius * (1f - hardness) * 0.35f), android.graphics.BlurMaskFilter.Blur.NORMAL) else null
+            maskCanvas.drawLine(start.x, start.y, currentPoint.x, currentPoint.y, drawPaint)
             maskCanvas.drawCircle(currentPoint.x, currentPoint.y, radius, drawDotPaint)
         }
-
         lastPoint = currentPoint
     }
 

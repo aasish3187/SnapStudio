@@ -285,7 +285,8 @@ fun FilterCarousel(
                     // Distinctive Filter Preview Bubble
                     FilterThumbnailView(
                         filter = filter,
-                        colorFilter = colorFilters[filter.id]
+                        colorFilter = colorFilters[filter.id],
+                        thumbnailBitmap = thumbnailBitmap
                     )
                 }
             }
@@ -335,18 +336,29 @@ fun FilterCarousel(
 @Composable
 fun FilterThumbnailView(
     filter: FilterPreset,
-    colorFilter: ColorFilter?
+    colorFilter: ColorFilter?,
+    thumbnailBitmap: ImageBitmap? = null
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         when (filter) {
             is FilterPreset.ColorMatrix -> {
-                Image(
-                    painter = painterResource(id = R.drawable.filter_sample_waterfall),
-                    contentDescription = filter.name,
-                    contentScale = ContentScale.Crop,
-                    colorFilter = colorFilter,
-                    modifier = Modifier.fillMaxSize()
-                )
+                if (thumbnailBitmap != null) {
+                    Image(
+                        bitmap = thumbnailBitmap,
+                        contentDescription = filter.name,
+                        contentScale = ContentScale.Crop,
+                        colorFilter = colorFilter,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(id = R.drawable.filter_sample_waterfall),
+                        contentDescription = filter.name,
+                        contentScale = ContentScale.Crop,
+                        colorFilter = colorFilter,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
                 // Distinctive chromatic overlay for signature looks
                 when (filter.id) {
                     "mono", "noir_classic_matrix" -> {

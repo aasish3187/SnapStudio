@@ -19,10 +19,8 @@ fun CropToolOverlay(onCropUpdated: (Float, Float, Float, Float) -> Unit) {
         .pointerInput(Unit) {
             detectDragGestures { change, dragAmount ->
                 change.consume()
-                // Stub: Move the whole rect instead of resizing for simplicity
                 cropRect = cropRect.translate(dragAmount.x, dragAmount.y)
-                // Normalize and send to C++ in a real implementation
-                // onCropUpdated(...)
+                onCropUpdated(cropRect.left, cropRect.top, cropRect.right, cropRect.bottom)
             }
         }
     ) {
