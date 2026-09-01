@@ -55,13 +55,23 @@ fun SelectivePointPanel(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 12.dp),
+                    .padding(vertical = 10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Icon(Icons.Outlined.TouchApp, contentDescription = null, tint = Amber, modifier = Modifier.size(28.dp))
-                Spacer(modifier = Modifier.height(6.dp))
-                Text("Tap anywhere on the photo to drop a Control Point", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                Text("Edits brightness, contrast & saturation within that radius", color = FgMuted, fontSize = 11.sp)
+                Icon(Icons.Outlined.TouchApp, contentDescription = null, tint = Amber, modifier = Modifier.size(24.dp))
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("Tap on photo or press below to drop a Point", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = onAddPointClicked,
+                    colors = ButtonDefaults.buttonColors(containerColor = Amber, contentColor = Ink900),
+                    shape = RoundedCornerShape(16.dp),
+                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 6.dp)
+                ) {
+                    Icon(Icons.Outlined.AddLocationAlt, contentDescription = null, modifier = Modifier.size(15.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Add Control Point", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
             }
         } else {
             // Parameter Selection Chips
@@ -187,16 +197,22 @@ fun SelectivePointPanel(
                     fontWeight = FontWeight.Bold
                 )
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = onAddPointClicked) {
+                        Icon(Icons.Outlined.AddLocationAlt, contentDescription = "Add", tint = Amber, modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text("Add", color = Amber, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+
                     TextButton(onClick = onResetPoint) {
-                        Icon(Icons.Outlined.RestartAlt, contentDescription = "Reset", tint = FgMuted, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(Icons.Outlined.RestartAlt, contentDescription = "Reset", tint = FgMuted, modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
                         Text("Reset", color = FgMuted, fontSize = 11.sp)
                     }
 
                     TextButton(onClick = onDeletePoint) {
-                        Icon(Icons.Outlined.DeleteOutline, contentDescription = "Delete", tint = Color(0xFFFF5252), modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(Icons.Outlined.DeleteOutline, contentDescription = "Delete", tint = Color(0xFFFF5252), modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
                         Text("Delete", color = Color(0xFFFF5252), fontSize = 11.sp)
                     }
                 }

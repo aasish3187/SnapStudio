@@ -85,37 +85,36 @@ object SelectiveAdjustmentCompositor {
     ): Bitmap {
         val result = Bitmap.createBitmap(baseBitmap.width, baseBitmap.height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(result)
-
-        // 1. Draw base image
         canvas.drawBitmap(baseBitmap, 0f, 0f, null)
 
         if (maskBitmap != null && (exposureEV != 0f || temperature != 0f || saturation != 1f || contrast != 1f || showMaskRubylith)) {
-            val adjustedBitmap = Bitmap.createBitmap(baseBitmap.width, baseBitmap.height, Bitmap.Config.ARGB_8888)
-            val adjustedCanvas = Canvas(adjustedBitmap)
+            val saveCount = canvas.saveLayer(0f, 0f, baseBitmap.width.toFloat(), baseBitmap.height.toFloat(), null)
+
             val colorMatrix = createAdjustedColorMatrix(exposureEV, temperature, saturation, contrast)
             val adjPaint = Paint().apply {
                 isAntiAlias = true
+                isFilterBitmap = true
                 colorFilter = ColorMatrixColorFilter(colorMatrix)
             }
-            adjustedCanvas.drawBitmap(baseBitmap, 0f, 0f, adjPaint)
+            canvas.drawBitmap(baseBitmap, 0f, 0f, adjPaint)
 
             val maskPaint = Paint().apply {
                 isAntiAlias = true
+                isFilterBitmap = true
                 xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
             }
             val srcRect = android.graphics.Rect(0, 0, maskBitmap.width, maskBitmap.height)
             val dstRect = android.graphics.Rect(0, 0, baseBitmap.width, baseBitmap.height)
-            adjustedCanvas.drawBitmap(maskBitmap, srcRect, dstRect, maskPaint)
+            canvas.drawBitmap(maskBitmap, srcRect, dstRect, maskPaint)
 
-            canvas.drawBitmap(adjustedBitmap, 0f, 0f, null)
-            adjustedBitmap.recycle()
+            canvas.restoreToCount(saveCount)
         }
 
         return result
     }
 
     /**
-     * Composites Snapseed-Style Radial Control Points onto base image with color-affinity falloff.
+     * Composites Snapseed-Style Radial Control Points onto base image with zero allocations and hardware saveLayer.
      */
     fun compositeControlPoints(
         baseBitmap: Bitmap,
@@ -127,30 +126,38 @@ object SelectiveAdjustmentCompositor {
         val canvas = Canvas(result)
         canvas.drawBitmap(baseBitmap, 0f, 0f, null)
 
-        val width = baseBitmap.width
-        val height = baseBitmap.height
+        val width = baseBitmap.width.toFloat()
+        val height = baseBitmap.height.toFloat()
 
         for (point in points) {
             val hasAdjustment = point.brightness != 0f || point.temperature != 0f || point.saturation != 1f || point.contrast != 1f
             if (!hasAdjustment) continue
 
-            val centerX = point.x * width
-            val centerY = point.y * height
+            val centerX = (point.x * width).coerceIn(0f, width)
+            val centerY = (point.y * height).coerceIn(0f, height)
             val radius = max(20f, point.radius)
 
-            // 1. Render adjusted layer
-            val adjustedBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-            val adjustedCanvas = Canvas(adjustedBitmap)
+            val left = max(0f, centerX - radius)
+            val top = max(0f, centerY - radius)
+            val right = min(width, centerX + radius)
+            val bottom = min(height, centerY + radius)
+
+            if (left >= right || top >= bottom) continue
+
+            val saveCount = canvas.saveLayer(left, top, right, bottom, null)
+
+            // 1. Draw base image adjusted with ColorMatrix in local bounding box
             val colorMatrix = createAdjustedColorMatrix(point.brightness * 2f, point.temperature, point.saturation, point.contrast)
             val adjPaint = Paint().apply {
                 isAntiAlias = true
-                colorFilter = ColorMatrixColorFilter(colorMatrix)
+                isFilterBitmap = true
+                this.colorFilter = ColorMatrixColorFilter(colorMatrix)
             }
-            adjustedCanvas.drawBitmap(baseBitmap, 0f, 0f, adjPaint)
+            val srcRect = android.graphics.Rect(left.toInt(), top.toInt(), right.toInt(), bottom.toInt())
+            val dstRect = android.graphics.RectF(left, top, right, bottom)
+            canvas.drawBitmap(baseBitmap, srcRect, dstRect, adjPaint)
 
-            // 2. Generate radial alpha mask
-            val maskBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-            val maskCanvas = Canvas(maskBitmap)
+            // 2. Apply Radial Gradient alpha falloff mask directly with DST_IN
             val radialShader = RadialGradient(
                 centerX, centerY, radius,
                 intArrayOf(Color.WHITE, Color.argb(160, 255, 255, 255), Color.TRANSPARENT),
@@ -160,20 +167,11 @@ object SelectiveAdjustmentCompositor {
             val maskPaint = Paint().apply {
                 isAntiAlias = true
                 shader = radialShader
-            }
-            maskCanvas.drawCircle(centerX, centerY, radius, maskPaint)
-
-            // 3. Mask adjusted layer
-            val blendPaint = Paint().apply {
-                isAntiAlias = true
                 xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
             }
-            adjustedCanvas.drawBitmap(maskBitmap, 0f, 0f, blendPaint)
-            maskBitmap.recycle()
+            canvas.drawCircle(centerX, centerY, radius, maskPaint)
 
-            // 4. Draw over canvas
-            canvas.drawBitmap(adjustedBitmap, 0f, 0f, null)
-            adjustedBitmap.recycle()
+            canvas.restoreToCount(saveCount)
         }
 
         return result
