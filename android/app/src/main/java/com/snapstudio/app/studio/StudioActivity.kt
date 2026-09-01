@@ -604,56 +604,79 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
         luminance, redCurve, greenCurve, blueCurve,
         dehaze, genericIntensity, selectedFilterMatrix
     ) {
-        val androidMatrix = AndroidColorMatrix().apply {
-            // 1. Saturation (Tune Image Saturation * Color Tool Saturation * Vibrance)
-            val netSat = (saturation * colorSaturation * (1f + colorVibrance * 0.4f)).coerceAtLeast(0f)
+        val finalMatrix = AndroidColorMatrix()
+
+        // 1. Saturation & Vibrance Matrix (Tune Image Saturation * Colour Panel Saturation * Vibrance)
+        val netSat = (saturation * colorSaturation * (1f + colorVibrance * 0.5f)).coerceIn(0f, 4f)
+        val satMatrix = AndroidColorMatrix().apply {
             setSaturation(netSat)
+        }
+        finalMatrix.postConcat(satMatrix)
 
-            // 2. Color Balance & RGB grading (from Colour tool, White balance, Warmth, and Curves)
-            val netTemp = temperature + colorTemperature + warmth
-            val netTint = tint + colorTint
-            val netRedScale = ((1f + colorRed * 0.4f + redCurve * 0.35f + luminance * 0.25f) * (1f + netTemp * 0.35f)).coerceAtLeast(0.05f)
-            val netGreenScale = ((1f + colorGreen * 0.4f + greenCurve * 0.35f + luminance * 0.25f) * (1f + netTint * 0.35f)).coerceAtLeast(0.05f)
-            val netBlueScale = ((1f + colorBlue * 0.4f + blueCurve * 0.35f + luminance * 0.25f) * (1f - netTemp * 0.35f)).coerceAtLeast(0.05f)
+        // 2. Color Balance & RGB Grading Matrix (from Colour tool, White balance, Warmth, Curves)
+        val netTemp = temperature + colorTemperature + warmth
+        val netTint = tint + colorTint
+        val netRedScale = ((1f + colorRed * 0.4f + redCurve * 0.35f + luminance * 0.25f) * (1f + netTemp * 0.35f)).coerceAtLeast(0.05f)
+        val netGreenScale = ((1f + colorGreen * 0.4f + greenCurve * 0.35f + luminance * 0.25f) * (1f + netTint * 0.35f)).coerceAtLeast(0.05f)
+        val netBlueScale = ((1f + colorBlue * 0.4f + blueCurve * 0.35f + luminance * 0.25f) * (1f - netTemp * 0.35f)).coerceAtLeast(0.05f)
+        val rgbScaleMatrix = AndroidColorMatrix().apply {
             setScale(netRedScale, netGreenScale, netBlueScale, 1f)
+        }
+        finalMatrix.postConcat(rgbScaleMatrix)
 
-            // 3. Contrast, Structure, Sharpening, Details & Tonal Contrast
-            val netContrast = (contrast * (1f + structure * 0.35f + sharpening * 0.25f + midTones * 0.35f)).coerceIn(0.1f, 3.5f)
-            postConcat(AndroidColorMatrix(floatArrayOf(
+        // 3. Contrast, Structure, Sharpening, Details & Tonal Contrast
+        val netContrast = (contrast * (1f + structure * 0.35f + sharpening * 0.25f + midTones * 0.35f)).coerceIn(0.1f, 3.5f)
+        if (netContrast != 1f) {
+            val contrastMatrix = AndroidColorMatrix(floatArrayOf(
                 netContrast, 0f, 0f, 0f, 0f,
                 0f, netContrast, 0f, 0f, 0f,
                 0f, 0f, netContrast, 0f, 0f,
                 0f, 0f, 0f, 1f, 0f
-            )))
+            ))
+            finalMatrix.postConcat(contrastMatrix)
+        }
 
-            // 4. Brightness, Ambiance, Highlights, Shadows, High Tones, Low Tones
-            val netBrightnessOffset = (brightness * 255f) + (ambiance * 35f) + (highlights * 30f) + (shadows * 25f) + (highTones * 35f) + (lowTones * 25f) - (protectHighlights * 15f) + (protectShadows * 15f)
-            postConcat(AndroidColorMatrix(floatArrayOf(
+        // 4. Brightness, Ambiance, Highlights, Shadows, High Tones, Low Tones
+        val netBrightnessOffset = (brightness * 255f) + (ambiance * 35f) + (highlights * 30f) + (shadows * 25f) + (highTones * 35f) + (lowTones * 25f) - (protectHighlights * 15f) + (protectShadows * 15f)
+        if (netBrightnessOffset != 0f) {
+            val brightnessMatrix = AndroidColorMatrix(floatArrayOf(
                 1f, 0f, 0f, 0f, netBrightnessOffset,
                 0f, 1f, 0f, 0f, netBrightnessOffset,
                 0f, 0f, 1f, 0f, netBrightnessOffset,
                 0f, 0f, 0f, 1f, 0f
-            )))
-
-            // 5. Dehaze
-            if (dehaze > 0f) {
-                val c = 1f + dehaze * 0.5f
-                val b = -dehaze * 22f
-                postConcat(AndroidColorMatrix(floatArrayOf(c,0f,0f,0f,b, 0f,c,0f,0f,b, 0f,0f,c,0f,b, 0f,0f,0f,1f,0f)))
-            }
-
-            // 6. Generic intensity multiplier
-            if (genericIntensity != 0f && selectedFilterMatrix == null) {
-                val c = 1f + genericIntensity * 0.2f
-                postConcat(AndroidColorMatrix(floatArrayOf(c,0f,0f,0f,0f, 0f,c,0f,0f,0f, 0f,0f,c,0f,0f, 0f,0f,0f,1f,0f)))
-            }
-
-            // 7. Selected Filter Preset LUT
-            if (selectedFilterMatrix != null) {
-                postConcat(AndroidColorMatrix(selectedFilterMatrix))
-            }
+            ))
+            finalMatrix.postConcat(brightnessMatrix)
         }
-        androidMatrix.array
+
+        // 5. Dehaze
+        if (dehaze > 0f) {
+            val c = 1f + dehaze * 0.5f
+            val b = -dehaze * 22f
+            finalMatrix.postConcat(AndroidColorMatrix(floatArrayOf(
+                c, 0f, 0f, 0f, b,
+                0f, c, 0f, 0f, b,
+                0f, 0f, c, 0f, b,
+                0f, 0f, 0f, 1f, 0f
+            )))
+        }
+
+        // 6. Generic intensity multiplier
+        if (genericIntensity != 0f && selectedFilterMatrix == null) {
+            val c = 1f + genericIntensity * 0.2f
+            finalMatrix.postConcat(AndroidColorMatrix(floatArrayOf(
+                c, 0f, 0f, 0f, 0f,
+                0f, c, 0f, 0f, 0f,
+                0f, 0f, c, 0f, 0f,
+                0f, 0f, 0f, 1f, 0f
+            )))
+        }
+
+        // 7. Selected Filter Preset LUT
+        if (selectedFilterMatrix != null) {
+            finalMatrix.postConcat(AndroidColorMatrix(selectedFilterMatrix))
+        }
+
+        finalMatrix.array
     }
 
     LaunchedEffect(combinedColorMatrix) {
