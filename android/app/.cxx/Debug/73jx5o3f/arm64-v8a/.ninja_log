@@ -19,3 +19,8 @@
 1043	1257	8089055566698918	C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/android/app/build/intermediates/cxx/Debug/73jx5o3f/obj/arm64-v8a/libsnapstudio.so	3eef41fbea664e38
 30	431	8089316682474358	C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/android/app/build/intermediates/cxx/Debug/73jx5o3f/obj/arm64-v8a/libsnapstudio.so	3eef41fbea664e38
 0	26	0	clean	4e350e9dcb7ec83f
+42	730	8099642297401162	core/CMakeFiles/SnapCore.dir/src/pipeline/SnapCore.cpp.o	8d3c8be13e318fbd
+19	733	8099642297416286	CMakeFiles/snapstudio.dir/native-lib.cpp.o	689884d4f26f4fc8
+68	776	8099642297863560	core/CMakeFiles/SnapCore.dir/src/pipeline/EditState.cpp.o	524c620d02676757
+776	5226	8099642331145829	core/libSnapCore.a	349c097f74b2b68
+5227	8385	8099642373017077	C:/Users/aasis/OneDrive - Vignan University/Desktop/CV_Project/android/app/build/intermediates/cxx/Debug/73jx5o3f/obj/arm64-v8a/libsnapstudio.so	3eef41fbea664e38

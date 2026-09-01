@@ -771,12 +771,19 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                 detectDragGestures(
                                     onDragStart = { offset ->
                                         val b = bitmap ?: return@detectDragGestures
-                                        val scaleX = b.width.toFloat() / size.width
-                                        val scaleY = b.height.toFloat() / size.height
-                                        val mappedOffset = Offset(offset.x * scaleX, offset.y * scaleY)
+                                        val fitScale = minOf(size.width / b.width.toFloat(), size.height / b.height.toFloat())
+                                        val fitW = b.width * fitScale
+                                        val fitH = b.height * fitScale
+                                        val padX = (size.width - fitW) / 2f
+                                        val padY = (size.height - fitH) / 2f
+                                        val imgX = (offset.x - padX) / fitScale
+                                        val imgY = (offset.y - padY) / fitScale
+
+                                        val mappedOffset = Offset(imgX.coerceIn(0f, b.width.toFloat() - 1f), imgY.coerceIn(0f, b.height.toFloat() - 1f))
+                                        val brushRadiusInBmp = (selectiveBrushSize / fitScale).coerceIn(4f, maxOf(b.width, b.height) * 0.25f)
                                         selectiveMaskEngine.startStroke(
                                             point = mappedOffset,
-                                            radius = selectiveBrushSize * scaleX,
+                                            radius = brushRadiusInBmp,
                                             hardness = selectiveBrushHardness,
                                             opacity = 1f,
                                             isErase = selectiveIsErase
@@ -785,12 +792,19 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                     },
                                     onDrag = { change, _ ->
                                         val b = bitmap ?: return@detectDragGestures
-                                        val scaleX = b.width.toFloat() / size.width
-                                        val scaleY = b.height.toFloat() / size.height
-                                        val mappedOffset = Offset(change.position.x * scaleX, change.position.y * scaleY)
+                                        val fitScale = minOf(size.width / b.width.toFloat(), size.height / b.height.toFloat())
+                                        val fitW = b.width * fitScale
+                                        val fitH = b.height * fitScale
+                                        val padX = (size.width - fitW) / 2f
+                                        val padY = (size.height - fitH) / 2f
+                                        val imgX = (change.position.x - padX) / fitScale
+                                        val imgY = (change.position.y - padY) / fitScale
+
+                                        val mappedOffset = Offset(imgX.coerceIn(0f, b.width.toFloat() - 1f), imgY.coerceIn(0f, b.height.toFloat() - 1f))
+                                        val brushRadiusInBmp = (selectiveBrushSize / fitScale).coerceIn(4f, maxOf(b.width, b.height) * 0.25f)
                                         selectiveMaskEngine.continueStroke(
                                             currentPoint = mappedOffset,
-                                            radius = selectiveBrushSize * scaleX,
+                                            radius = brushRadiusInBmp,
                                             hardness = selectiveBrushHardness,
                                             opacity = 1f,
                                             isErase = selectiveIsErase
@@ -806,12 +820,19 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                 detectDragGestures(
                                     onDragStart = { offset ->
                                         val b = bitmap ?: return@detectDragGestures
-                                        val scaleX = b.width.toFloat() / size.width
-                                        val scaleY = b.height.toFloat() / size.height
-                                        val mappedOffset = Offset(offset.x * scaleX, offset.y * scaleY)
+                                        val fitScale = minOf(size.width / b.width.toFloat(), size.height / b.height.toFloat())
+                                        val fitW = b.width * fitScale
+                                        val fitH = b.height * fitScale
+                                        val padX = (size.width - fitW) / 2f
+                                        val padY = (size.height - fitH) / 2f
+                                        val imgX = (offset.x - padX) / fitScale
+                                        val imgY = (offset.y - padY) / fitScale
+
+                                        val mappedOffset = Offset(imgX.coerceIn(0f, b.width.toFloat() - 1f), imgY.coerceIn(0f, b.height.toFloat() - 1f))
+                                        val brushRadiusInBmp = (healingBrushSize / fitScale).coerceIn(4f, maxOf(b.width, b.height) * 0.25f)
                                         healingMaskEngine.startStroke(
                                             point = mappedOffset,
-                                            radius = healingBrushSize * scaleX,
+                                            radius = brushRadiusInBmp,
                                             hardness = 0.85f,
                                             opacity = 1f,
                                             isErase = healingIsErase
@@ -820,12 +841,19 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                     },
                                     onDrag = { change, _ ->
                                         val b = bitmap ?: return@detectDragGestures
-                                        val scaleX = b.width.toFloat() / size.width
-                                        val scaleY = b.height.toFloat() / size.height
-                                        val mappedOffset = Offset(change.position.x * scaleX, change.position.y * scaleY)
+                                        val fitScale = minOf(size.width / b.width.toFloat(), size.height / b.height.toFloat())
+                                        val fitW = b.width * fitScale
+                                        val fitH = b.height * fitScale
+                                        val padX = (size.width - fitW) / 2f
+                                        val padY = (size.height - fitH) / 2f
+                                        val imgX = (change.position.x - padX) / fitScale
+                                        val imgY = (change.position.y - padY) / fitScale
+
+                                        val mappedOffset = Offset(imgX.coerceIn(0f, b.width.toFloat() - 1f), imgY.coerceIn(0f, b.height.toFloat() - 1f))
+                                        val brushRadiusInBmp = (healingBrushSize / fitScale).coerceIn(4f, maxOf(b.width, b.height) * 0.25f)
                                         healingMaskEngine.continueStroke(
                                             currentPoint = mappedOffset,
-                                            radius = healingBrushSize * scaleX,
+                                            radius = brushRadiusInBmp,
                                             hardness = 0.85f,
                                             opacity = 1f,
                                             isErase = healingIsErase
@@ -860,7 +888,14 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                             .padding(4.dp)
                             .drawWithContent {
                                 drawContent()
-                                if (!isComparingOriginal) {
+                                val b = bitmap
+                                if (!isComparingOriginal && b != null) {
+                                    val fitScale = minOf(size.width / b.width.toFloat(), size.height / b.height.toFloat())
+                                    val fitW = b.width * fitScale
+                                    val fitH = b.height * fitScale
+                                    val padX = (size.width - fitW) / 2f
+                                    val padY = (size.height - fitH) / 2f
+
                                     if (doubleExposureBitmap != null) drawImage(doubleExposureBitmap!!, alpha = doubleExposureOpacity, blendMode = BlendMode.Screen)
                                     if (vignetteStrength > 0f) drawRect(androidx.compose.ui.graphics.Brush.radialGradient(listOf(Color.Transparent, Color.Black.copy(alpha = vignetteStrength)), center = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f), radius = Math.min(size.width, size.height) / 1.2f))
                                     if (grainStrength > 0f) drawRect(Color.White.copy(alpha = grainStrength * 0.15f), blendMode = BlendMode.Overlay)
@@ -908,7 +943,8 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                             val maskBmp = healingMaskEngine.maskBitmap
                                             drawImage(
                                                 image = maskBmp.asImageBitmap(),
-                                                dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()),
+                                                dstOffset = androidx.compose.ui.unit.IntOffset(padX.toInt(), padY.toInt()),
+                                                dstSize = androidx.compose.ui.unit.IntSize(fitW.toInt(), fitH.toInt()),
                                                 colorFilter = ColorFilter.tint(Color(0xFFFF2D55), BlendMode.SrcIn),
                                                 alpha = 0.6f
                                             )
@@ -922,7 +958,8 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                             val maskBmp = selectiveMaskEngine.maskBitmap
                                             drawImage(
                                                 image = maskBmp.asImageBitmap(),
-                                                dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()),
+                                                dstOffset = androidx.compose.ui.unit.IntOffset(padX.toInt(), padY.toInt()),
+                                                dstSize = androidx.compose.ui.unit.IntSize(fitW.toInt(), fitH.toInt()),
                                                 colorFilter = ColorFilter.tint(Color(0xFFFF2D55), BlendMode.SrcIn),
                                                 alpha = 0.6f
                                             )
