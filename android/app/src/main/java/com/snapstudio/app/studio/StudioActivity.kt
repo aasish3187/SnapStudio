@@ -1005,7 +1005,7 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                                 dstOffset = androidx.compose.ui.unit.IntOffset(padX.toInt(), padY.toInt()),
                                                 dstSize = androidx.compose.ui.unit.IntSize(fitW.toInt(), fitH.toInt()),
                                                 colorFilter = ColorFilter.tint(Color(0xFFFF2D55), BlendMode.SrcIn),
-                                                alpha = 0.6f
+                                                alpha = 0.65f
                                             )
                                         }
 
@@ -1018,7 +1018,7 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                             }
                                             drawPath(
                                                 path = strokePath,
-                                                color = if (activeStrokeIsErase) Color.Transparent else Color(0xFFFF2D55).copy(alpha = 0.6f),
+                                                color = if (activeStrokeIsErase) Color.Transparent else Color(0xFFFF2D55).copy(alpha = 0.65f),
                                                 style = androidx.compose.ui.graphics.drawscope.Stroke(
                                                     width = activeStrokeRadius * 2f,
                                                     cap = androidx.compose.ui.graphics.StrokeCap.Round,
@@ -1026,55 +1026,101 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                                 ),
                                                 blendMode = if (activeStrokeIsErase) BlendMode.Clear else BlendMode.SrcOver
                                             )
-                                        } else if (activeStrokePoints.size == 1) {
+                                        }
+
+                                        // Live Circular Brush Reticle (Radius of selected brush)
+                                        val currentPoint = activeStrokePoints.lastOrNull()
+                                        if (currentPoint != null) {
+                                            // Semi-transparent brush area fill
                                             drawCircle(
-                                                color = if (activeStrokeIsErase) Color.Transparent else Color(0xFFFF2D55).copy(alpha = 0.6f),
+                                                color = if (activeStrokeIsErase) Color.White.copy(alpha = 0.15f) else Color(0xFFFF2D55).copy(alpha = 0.25f),
                                                 radius = activeStrokeRadius,
-                                                center = activeStrokePoints[0],
-                                                blendMode = if (activeStrokeIsErase) BlendMode.Clear else BlendMode.SrcOver
+                                                center = currentPoint
+                                            )
+                                            // Outer dark shadow ring for high contrast on light areas
+                                            drawCircle(
+                                                color = Color.Black.copy(alpha = 0.6f),
+                                                radius = activeStrokeRadius + 1.5f,
+                                                center = currentPoint,
+                                                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.5f)
+                                            )
+                                            // Primary glowing Amber / White ring matching brush radius
+                                            drawCircle(
+                                                color = if (activeStrokeIsErase) Color.White else Amber,
+                                                radius = activeStrokeRadius,
+                                                center = currentPoint,
+                                                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+                                            )
+                                            // Center precision reticle dot
+                                            drawCircle(
+                                                color = Color.White,
+                                                radius = 3.dp.toPx(),
+                                                center = currentPoint
                                             )
                                         }
                                     }
 
-                                    // Live Selective Brush Crimson Highlight
+                                    // Live Selective Brush Crimson Highlight & Reticle
                                     if (activeTab == "brush" || activeTab == "selective") {
                                         val v = maskVersion
-                                        if (v >= 0 && selectiveShowRubylith) {
+                                        if (v >= 0) {
                                             val maskBmp = selectiveMaskEngine.maskBitmap
                                             drawImage(
                                                 image = maskBmp.asImageBitmap(),
                                                 dstOffset = androidx.compose.ui.unit.IntOffset(padX.toInt(), padY.toInt()),
                                                 dstSize = androidx.compose.ui.unit.IntSize(fitW.toInt(), fitH.toInt()),
                                                 colorFilter = ColorFilter.tint(Color(0xFFFF2D55), BlendMode.SrcIn),
-                                                alpha = 0.6f
+                                                alpha = 0.65f
                                             )
                                         }
 
-                                        if (selectiveShowRubylith) {
-                                            if (activeStrokePoints.size > 1) {
-                                                val strokePath = androidx.compose.ui.graphics.Path()
-                                                strokePath.moveTo(activeStrokePoints[0].x, activeStrokePoints[0].y)
-                                                for (i in 1 until activeStrokePoints.size) {
-                                                    strokePath.lineTo(activeStrokePoints[i].x, activeStrokePoints[i].y)
-                                                }
-                                                drawPath(
-                                                    path = strokePath,
-                                                    color = if (activeStrokeIsErase) Color.Transparent else Color(0xFFFF2D55).copy(alpha = 0.6f),
-                                                    style = androidx.compose.ui.graphics.drawscope.Stroke(
-                                                        width = activeStrokeRadius * 2f,
-                                                        cap = androidx.compose.ui.graphics.StrokeCap.Round,
-                                                        join = androidx.compose.ui.graphics.StrokeJoin.Round
-                                                    ),
-                                                    blendMode = if (activeStrokeIsErase) BlendMode.Clear else BlendMode.SrcOver
-                                                )
-                                            } else if (activeStrokePoints.size == 1) {
-                                                drawCircle(
-                                                    color = if (activeStrokeIsErase) Color.Transparent else Color(0xFFFF2D55).copy(alpha = 0.6f),
-                                                    radius = activeStrokeRadius,
-                                                    center = activeStrokePoints[0],
-                                                    blendMode = if (activeStrokeIsErase) BlendMode.Clear else BlendMode.SrcOver
-                                                )
+                                        if (activeStrokePoints.size > 1) {
+                                            val strokePath = androidx.compose.ui.graphics.Path()
+                                            strokePath.moveTo(activeStrokePoints[0].x, activeStrokePoints[0].y)
+                                            for (i in 1 until activeStrokePoints.size) {
+                                                strokePath.lineTo(activeStrokePoints[i].x, activeStrokePoints[i].y)
                                             }
+                                            drawPath(
+                                                path = strokePath,
+                                                color = if (activeStrokeIsErase) Color.Transparent else Color(0xFFFF2D55).copy(alpha = 0.65f),
+                                                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                                    width = activeStrokeRadius * 2f,
+                                                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                                                    join = androidx.compose.ui.graphics.StrokeJoin.Round
+                                                ),
+                                                blendMode = if (activeStrokeIsErase) BlendMode.Clear else BlendMode.SrcOver
+                                            )
+                                        }
+
+                                        // Live Circular Brush Reticle (Radius of selected brush)
+                                        val currentPoint = activeStrokePoints.lastOrNull()
+                                        if (currentPoint != null) {
+                                            // Semi-transparent brush area fill
+                                            drawCircle(
+                                                color = if (activeStrokeIsErase) Color.White.copy(alpha = 0.15f) else Color(0xFFFF2D55).copy(alpha = 0.25f),
+                                                radius = activeStrokeRadius,
+                                                center = currentPoint
+                                            )
+                                            // Outer dark shadow ring for high contrast
+                                            drawCircle(
+                                                color = Color.Black.copy(alpha = 0.6f),
+                                                radius = activeStrokeRadius + 1.5f,
+                                                center = currentPoint,
+                                                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.5f)
+                                            )
+                                            // Primary glowing Amber / White ring matching brush radius
+                                            drawCircle(
+                                                color = if (activeStrokeIsErase) Color.White else Amber,
+                                                radius = activeStrokeRadius,
+                                                center = currentPoint,
+                                                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+                                            )
+                                            // Center precision reticle dot
+                                            drawCircle(
+                                                color = Color.White,
+                                                radius = 3.dp.toPx(),
+                                                center = currentPoint
+                                            )
                                         }
                                     }
                                 }
