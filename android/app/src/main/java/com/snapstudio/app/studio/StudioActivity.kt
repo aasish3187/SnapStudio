@@ -230,6 +230,10 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
     var selectiveMode by remember { mutableStateOf(SelectiveMode.EXPOSURE) }
     var maskVersion by remember { mutableStateOf(0) }
 
+    // Snapseed-Style Selective Control Points Engine
+    var selectivePoints by remember { mutableStateOf(listOf<SelectiveControlPoint>()) }
+    var selectedPointId by remember { mutableStateOf<String?>(null) }
+
     // Smart Inpainting & Object Healing Engine
     val healingMaskEngine = remember { SelectiveMaskEngine() }
     var healingBrushSize by remember { mutableStateOf(35f) }
@@ -274,8 +278,13 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
         }
     }
 
-    val liveDisplayBitmap = remember(bitmap, maskVersion, selectiveExposureEV, selectiveTemperature, selectiveSaturation, selectiveContrast, selectiveShowRubylith, activeTab) {
-        if ((activeTab == "brush" || activeTab == "selective") && bitmap != null) {
+    val liveDisplayBitmap = remember(bitmap, maskVersion, selectiveExposureEV, selectiveTemperature, selectiveSaturation, selectiveContrast, selectiveShowRubylith, selectivePoints, activeTab) {
+        if (activeTab == "selective" && bitmap != null && selectivePoints.isNotEmpty()) {
+            SelectiveAdjustmentCompositor.compositeControlPoints(
+                baseBitmap = bitmap!!,
+                points = selectivePoints
+            )
+        } else if (activeTab == "brush" && bitmap != null) {
             SelectiveAdjustmentCompositor.composite(
                 baseBitmap = bitmap!!,
                 maskBitmap = selectiveMaskEngine.maskBitmap,
@@ -424,7 +433,11 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
             overlays = s.overlays
             bitmap = s.bitmap
         }
-        if (activeTab == "brush" || activeTab == "selective") {
+        if (activeTab == "selective") {
+            selectivePoints = emptyList()
+            selectedPointId = null
+        }
+        if (activeTab == "brush") {
             selectiveMaskEngine.clear()
             selectiveExposureEV = 0f
             selectiveTemperature = 0f
@@ -442,7 +455,20 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
     }
 
     fun applyTool() {
-        if ((activeTab == "brush" || activeTab == "selective") && bitmap != null) {
+        if (activeTab == "selective" && bitmap != null) {
+            val composited = if (selectivePoints.isNotEmpty()) {
+                SelectiveAdjustmentCompositor.compositeControlPoints(
+                    baseBitmap = bitmap!!,
+                    points = selectivePoints
+                )
+            } else {
+                bitmap!!
+            }
+            bitmap = composited
+            selectivePoints = emptyList()
+            selectedPointId = null
+            commitHistory(overlays, composited)
+        } else if (activeTab == "brush" && bitmap != null) {
             val composited = SelectiveAdjustmentCompositor.composite(
                 baseBitmap = bitmap!!,
                 maskBitmap = selectiveMaskEngine.maskBitmap,
@@ -799,8 +825,86 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                             translationX = canvasOffset.x,
                             translationY = canvasOffset.y
                         )
-                        .pointerInput(activeTab, selectiveBrushSize, selectiveBrushHardness, selectiveIsErase, healingBrushSize, healingIsErase) {
-                            if (activeTab == "brush" || activeTab == "selective") {
+                        .pointerInput(activeTab, selectivePoints, selectedPointId) {
+                            if (activeTab == "selective") {
+                                detectTapGestures(
+                                    onTap = { offset ->
+                                        val b = bitmap ?: return@detectTapGestures
+                                        val fitScale = minOf(size.width / b.width.toFloat(), size.height / b.height.toFloat())
+                                        val fitW = b.width * fitScale
+                                        val fitH = b.height * fitScale
+                                        val padX = (size.width - fitW) / 2f
+                                        val padY = (size.height - fitH) / 2f
+                                        val imgX = (offset.x - padX) / fitScale
+                                        val imgY = (offset.y - padY) / fitScale
+
+                                        if (imgX in 0f..b.width.toFloat() && imgY in 0f..b.height.toFloat()) {
+                                            val normX = (imgX / b.width).coerceIn(0f, 1f)
+                                            val normY = (imgY / b.height).coerceIn(0f, 1f)
+
+                                            val hitPoint = selectivePoints.firstOrNull { pt ->
+                                                val ptScreenX = padX + pt.x * fitW
+                                                val ptScreenY = padY + pt.y * fitH
+                                                kotlin.math.hypot(offset.x - ptScreenX, offset.y - ptScreenY) <= 45f
+                                            }
+
+                                            if (hitPoint != null) {
+                                                selectedPointId = hitPoint.id
+                                            } else {
+                                                val newPt = SelectiveControlPoint(
+                                                    x = normX,
+                                                    y = normY,
+                                                    radius = (b.width * 0.22f).coerceIn(80f, 400f),
+                                                    brightness = 0.25f
+                                                )
+                                                selectivePoints = selectivePoints + newPt
+                                                selectedPointId = newPt.id
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                        .pointerInput(activeTab, selectedPointId, selectiveBrushSize, selectiveBrushHardness, selectiveIsErase, healingBrushSize, healingIsErase) {
+                            if (activeTab == "selective") {
+                                detectDragGestures(
+                                    onDragStart = { offset ->
+                                        val b = bitmap ?: return@detectDragGestures
+                                        val fitScale = minOf(size.width / b.width.toFloat(), size.height / b.height.toFloat())
+                                        val fitW = b.width * fitScale
+                                        val fitH = b.height * fitScale
+                                        val padX = (size.width - fitW) / 2f
+                                        val padY = (size.height - fitH) / 2f
+
+                                        val hitPoint = selectivePoints.firstOrNull { pt ->
+                                            val ptScreenX = padX + pt.x * fitW
+                                            val ptScreenY = padY + pt.y * fitH
+                                            kotlin.math.hypot(offset.x - ptScreenX, offset.y - ptScreenY) <= 55f
+                                        }
+                                        if (hitPoint != null) {
+                                            selectedPointId = hitPoint.id
+                                        }
+                                    },
+                                    onDrag = { change, _ ->
+                                        val b = bitmap ?: return@detectDragGestures
+                                        val curId = selectedPointId ?: return@detectDragGestures
+                                        val fitScale = minOf(size.width / b.width.toFloat(), size.height / b.height.toFloat())
+                                        val fitW = b.width * fitScale
+                                        val fitH = b.height * fitScale
+                                        val padX = (size.width - fitW) / 2f
+                                        val padY = (size.height - fitH) / 2f
+                                        val imgX = (change.position.x - padX) / fitScale
+                                        val imgY = (change.position.y - padY) / fitScale
+
+                                        val normX = (imgX / b.width).coerceIn(0f, 1f)
+                                        val normY = (imgY / b.height).coerceIn(0f, 1f)
+
+                                        selectivePoints = selectivePoints.map {
+                                            if (it.id == curId) it.copy(x = normX, y = normY) else it
+                                        }
+                                    }
+                                )
+                            } else if (activeTab == "brush") {
                                 detectDragGestures(
                                     onDragStart = { offset ->
                                         val b = bitmap ?: return@detectDragGestures
@@ -1060,8 +1164,77 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                         }
                                     }
 
-                                    // Live Selective Brush Crimson Highlight & Reticle
-                                    if (activeTab == "brush" || activeTab == "selective") {
+                                    // Snapseed-Style Selective Control Points Overlay
+                                    if (activeTab == "selective") {
+                                        val selectedPoint = selectivePoints.firstOrNull { it.id == selectedPointId } ?: selectivePoints.lastOrNull()
+                                        for (pt in selectivePoints) {
+                                            val isSelected = pt.id == selectedPoint?.id
+                                            val ptCenterX = padX + pt.x * fitW
+                                            val ptCenterY = padY + pt.y * fitH
+                                            val screenRadius = (pt.radius / (bitmap?.width?.toFloat() ?: 1f)) * fitW
+
+                                            if (isSelected) {
+                                                // 1. Translucent red rubylith fill inside circular radius
+                                                drawCircle(
+                                                    color = Color(0xFFFF2D55).copy(alpha = 0.22f),
+                                                    radius = screenRadius,
+                                                    center = Offset(ptCenterX, ptCenterY)
+                                                )
+                                                // 2. High contrast outer radius border
+                                                drawCircle(
+                                                    color = Color.Black.copy(alpha = 0.5f),
+                                                    radius = screenRadius + 1.5f,
+                                                    center = Offset(ptCenterX, ptCenterY),
+                                                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.5f)
+                                                )
+                                                drawCircle(
+                                                    color = Amber,
+                                                    radius = screenRadius,
+                                                    center = Offset(ptCenterX, ptCenterY),
+                                                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                                        width = 2.dp.toPx(),
+                                                        pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(16f, 12f), 0f)
+                                                    )
+                                                )
+                                                // 3. Center Control Pin Badge
+                                                drawCircle(
+                                                    color = Color.Black.copy(alpha = 0.7f),
+                                                    radius = 16.dp.toPx(),
+                                                    center = Offset(ptCenterX, ptCenterY)
+                                                )
+                                                drawCircle(
+                                                    color = Amber,
+                                                    radius = 13.dp.toPx(),
+                                                    center = Offset(ptCenterX, ptCenterY)
+                                                )
+                                                drawCircle(
+                                                    color = Ink900,
+                                                    radius = 4.dp.toPx(),
+                                                    center = Offset(ptCenterX, ptCenterY)
+                                                )
+                                            } else {
+                                                // Unselected compact pin
+                                                drawCircle(
+                                                    color = Color.Black.copy(alpha = 0.6f),
+                                                    radius = 11.dp.toPx(),
+                                                    center = Offset(ptCenterX, ptCenterY)
+                                                )
+                                                drawCircle(
+                                                    color = Color.White,
+                                                    radius = 9.dp.toPx(),
+                                                    center = Offset(ptCenterX, ptCenterY)
+                                                )
+                                                drawCircle(
+                                                    color = Ink800,
+                                                    radius = 3.dp.toPx(),
+                                                    center = Offset(ptCenterX, ptCenterY)
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    // Live Freehand Brush Crimson Highlight & Reticle
+                                    if (activeTab == "brush") {
                                         val v = maskVersion
                                         if (v >= 0) {
                                             val maskBmp = selectiveMaskEngine.maskBitmap
@@ -1095,27 +1268,23 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                                         // Live Circular Brush Reticle (Radius of selected brush)
                                         val currentPoint = activeStrokePoints.lastOrNull()
                                         if (currentPoint != null) {
-                                            // Semi-transparent brush area fill
                                             drawCircle(
                                                 color = if (activeStrokeIsErase) Color.White.copy(alpha = 0.15f) else Color(0xFFFF2D55).copy(alpha = 0.25f),
                                                 radius = activeStrokeRadius,
                                                 center = currentPoint
                                             )
-                                            // Outer dark shadow ring for high contrast
                                             drawCircle(
                                                 color = Color.Black.copy(alpha = 0.6f),
                                                 radius = activeStrokeRadius + 1.5f,
                                                 center = currentPoint,
                                                 style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.5f)
                                             )
-                                            // Primary glowing Amber / White ring matching brush radius
                                             drawCircle(
                                                 color = if (activeStrokeIsErase) Color.White else Amber,
                                                 radius = activeStrokeRadius,
                                                 center = currentPoint,
                                                 style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
                                             )
-                                            // Center precision reticle dot
                                             drawCircle(
                                                 color = Color.White,
                                                 radius = 3.dp.toPx(),
@@ -1329,7 +1498,42 @@ fun StudioScreen(mediaUri: Uri, isVideo: Boolean, onCancel: () -> Unit, onSaved:
                 Column {
                     Box(modifier = Modifier.fillMaxWidth().height(190.dp), contentAlignment = Alignment.Center) {
                         when (activeTab) {
-                            "brush", "selective" -> com.snapstudio.app.ui.components.SelectiveBrushPanel(
+                            "selective" -> {
+                                val selectedPoint = selectivePoints.firstOrNull { it.id == selectedPointId } ?: selectivePoints.lastOrNull()
+                                com.snapstudio.app.ui.components.SelectivePointPanel(
+                                    controlPoints = selectivePoints,
+                                    selectedPoint = selectedPoint,
+                                    onPointUpdated = { updated ->
+                                        selectivePoints = selectivePoints.map { if (it.id == updated.id) updated else it }
+                                    },
+                                    onAddPointClicked = {
+                                        val b = bitmap
+                                        if (b != null) {
+                                            val newPt = SelectiveControlPoint(
+                                                x = 0.5f,
+                                                y = 0.5f,
+                                                radius = (b.width * 0.22f).coerceIn(80f, 400f),
+                                                brightness = 0.25f
+                                            )
+                                            selectivePoints = selectivePoints + newPt
+                                            selectedPointId = newPt.id
+                                        }
+                                    },
+                                    onDeletePoint = {
+                                        if (selectedPoint != null) {
+                                            selectivePoints = selectivePoints.filter { it.id != selectedPoint.id }
+                                            selectedPointId = selectivePoints.lastOrNull()?.id
+                                        }
+                                    },
+                                    onResetPoint = {
+                                        if (selectedPoint != null) {
+                                            val reset = selectedPoint.copy(brightness = 0f, contrast = 1f, saturation = 1f, temperature = 0f)
+                                            selectivePoints = selectivePoints.map { if (it.id == selectedPoint.id) reset else it }
+                                        }
+                                    }
+                                )
+                            }
+                            "brush" -> com.snapstudio.app.ui.components.SelectiveBrushPanel(
                                 activeMode = selectiveMode,
                                 onModeChanged = { selectiveMode = it },
                                 exposureEV = selectiveExposureEV,
